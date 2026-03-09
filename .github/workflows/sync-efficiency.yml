@@ -1,4 +1,4 @@
-﻿name: Sync Efficiency Stats
+name: Sync Efficiency Stats
 
 on:
   workflow_dispatch:
@@ -30,17 +30,18 @@ jobs:
           GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
           FIREBASE_CREDENTIALS: ${{ secrets.FIREBASE_CREDENTIALS }}
           REF_SHEET_ID: ${{ secrets.REF_SHEET_ID }}
-          REF_SHEET_NAME: ${{ secrets.REF_SHEET_NAME }}
-          REF_GROUP_HEADER: ${{ secrets.REF_GROUP_HEADER }}
-          REF_STATUS_HEADER: ${{ secrets.REF_STATUS_HEADER }}
-          REF_NAME_HEADER: ${{ secrets.REF_NAME_HEADER }}
-          INCLUDE_GROUP: ${{ secrets.INCLUDE_GROUP }}
-          INCLUDE_STATUS: ${{ secrets.INCLUDE_STATUS }}
+          REF_SHEET_NAME: "勿修改/全部同事DATA"
+          REF_GROUP_HEADER: "組別"
+          REF_STATUS_HEADER: "狀態"
+          REF_NAME_HEADER: "同事名稱"
+          INCLUDE_GROUP: "2"
+          INCLUDE_STATUS: "1"
           DATA_SHEETS_JSON: ${{ secrets.DATA_SHEETS_JSON }}
-          FIRESTORE_COLLECTION: ${{ secrets.FIRESTORE_COLLECTION }}
-          COL_COLLEAGUE: ${{ secrets.COL_COLLEAGUE }}
-          COL_DATE: ${{ secrets.COL_DATE }}
-          COL_PRODUCTION_HOURS: ${{ secrets.COL_PRODUCTION_HOURS }}
-          COL_BF: ${{ secrets.COL_BF }}
+          FIRESTORE_COLLECTION: "efficiency_stats"
+          COL_COLLEAGUE: "43"
+          COL_DATE: "50"
+          COL_PRODUCTION_HOURS: "53"
+          COL_BF: "57"
         run: |
           node -e "const { runSync } = require('./index'); runSync().then(r => { console.log(JSON.stringify(r, null, 2)); process.exit(0); }).catch(e => { console.error(e); process.exit(1); });"
+
