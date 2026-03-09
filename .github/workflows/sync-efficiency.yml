@@ -28,12 +28,12 @@ jobs:
       - name: Run sync
         env:
           GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
-          FIREBASE_CREDENTIALS: ${{ secrets.FIREBASE_CREDENTIALS }}
+          FIREBASE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
           REF_SHEET_ID: ${{ secrets.REF_SHEET_ID }}
-          REF_SHEET_NAME: "勿修改/全部同事DATA"
-          REF_GROUP_HEADER: "組別"
-          REF_STATUS_HEADER: "狀態"
-          REF_NAME_HEADER: "同事名稱"
+          REF_SHEET_NAME: "\u52FF\u4FEE\u6539/\u5168\u90E8\u540C\u4E8BDATA"
+          REF_GROUP_HEADER: "\u7D44\u5225"
+          REF_STATUS_HEADER: "\u72C0\u614B"
+          REF_NAME_HEADER: "\u540C\u4E8B\u540D\u7A31"
           INCLUDE_GROUP: "2"
           INCLUDE_STATUS: "1"
           DATA_SHEETS_JSON: ${{ secrets.DATA_SHEETS_JSON }}
@@ -44,4 +44,3 @@ jobs:
           COL_BF: "57"
         run: |
           node -e "const { runSync } = require('./index'); runSync().then(r => { console.log(JSON.stringify(r, null, 2)); process.exit(0); }).catch(e => { console.error(e); process.exit(1); });"
-
