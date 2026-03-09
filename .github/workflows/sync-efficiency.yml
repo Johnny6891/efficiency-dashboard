@@ -1,0 +1,46 @@
+﻿name: Sync Efficiency Stats
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 17 * * *" # Asia/Taipei 01:00
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: sync-efficiency
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run sync
+        env:
+          GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+          FIREBASE_CREDENTIALS: ${{ secrets.FIREBASE_CREDENTIALS }}
+          REF_SHEET_ID: ${{ secrets.REF_SHEET_ID }}
+          REF_SHEET_NAME: ${{ secrets.REF_SHEET_NAME }}
+          REF_GROUP_HEADER: ${{ secrets.REF_GROUP_HEADER }}
+          REF_STATUS_HEADER: ${{ secrets.REF_STATUS_HEADER }}
+          REF_NAME_HEADER: ${{ secrets.REF_NAME_HEADER }}
+          INCLUDE_GROUP: ${{ secrets.INCLUDE_GROUP }}
+          INCLUDE_STATUS: ${{ secrets.INCLUDE_STATUS }}
+          DATA_SHEETS_JSON: ${{ secrets.DATA_SHEETS_JSON }}
+          FIRESTORE_COLLECTION: ${{ secrets.FIRESTORE_COLLECTION }}
+          COL_COLLEAGUE: ${{ secrets.COL_COLLEAGUE }}
+          COL_DATE: ${{ secrets.COL_DATE }}
+          COL_PRODUCTION_HOURS: ${{ secrets.COL_PRODUCTION_HOURS }}
+          COL_BF: ${{ secrets.COL_BF }}
+        run: |
+          node -e "const { runSync } = require('./index'); runSync().then(r => { console.log(JSON.stringify(r, null, 2)); process.exit(0); }).catch(e => { console.error(e); process.exit(1); });"

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>工時效率統計儀表板</title>
+  <meta name="description" content="多人上工同事工時統計與效率分析儀表板" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <div class="app">
+    <!-- ═══ Header ═══ -->
+    <header class="header">
+      <div class="header-content">
+        <div class="header-title-group">
+          <h1>
+            <span class="header-icon">⚡</span>
+            工時效率統計
+          </h1>
+          <p class="subtitle">多人上工同事工時統計儀表板</p>
+        </div>
+        <div class="header-meta">
+          <span class="sync-badge" id="syncBadge">
+            <span class="sync-dot"></span>
+            <span id="lastUpdated">載入中...</span>
+          </span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ═══ Summary Cards ═══ -->
+    <section class="summary-grid">
+      <div class="summary-card" id="cardPersons">
+        <div class="card-icon">👥</div>
+        <div class="card-body">
+          <div class="card-value" id="valPersons">-</div>
+          <div class="card-label">有效人員</div>
+        </div>
+      </div>
+      <div class="summary-card" id="cardRecords">
+        <div class="card-icon">📋</div>
+        <div class="card-body">
+          <div class="card-value" id="valRecords">-</div>
+          <div class="card-label">統計筆數</div>
+        </div>
+      </div>
+      <div class="summary-card" id="cardEfficiency">
+        <div class="card-icon">🎯</div>
+        <div class="card-body">
+          <div class="card-value" id="valEfficiency">-</div>
+          <div class="card-label">平均效率</div>
+        </div>
+      </div>
+      <div class="summary-card" id="cardHours">
+        <div class="card-icon">⏱️</div>
+        <div class="card-body">
+          <div class="card-value" id="valHours">-</div>
+          <div class="card-label">總生產工時</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ Filters ═══ -->
+    <section class="filters-bar">
+      <div class="filter-group">
+        <label for="filterMonth">📅 年月</label>
+        <select id="filterMonth">
+          <option value="all">全部</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="filterPerson">👤 人員</label>
+        <select id="filterPerson">
+          <option value="all">全部</option>
+        </select>
+      </div>
+      <div class="filter-group search-group">
+        <label for="searchInput">🔍 搜尋</label>
+        <input type="text" id="searchInput" placeholder="輸入人員名稱..." />
+      </div>
+      <button class="btn-reset" id="btnReset" title="重置篩選">
+        ↺ 重置
+      </button>
+    </section>
+
+    <!-- ═══ Data Table ═══ -->
+    <section class="table-section">
+      <div class="table-header-bar">
+        <h2>📊 詳細數據</h2>
+        <span class="record-count" id="recordCount"></span>
+      </div>
+      <div class="table-container">
+        <table id="dataTable">
+          <thead>
+            <tr>
+              <th data-col="yearMonth" class="sortable">
+                年月 <span class="sort-icon">⇅</span>
+              </th>
+              <th data-col="person" class="sortable">
+                人員 <span class="sort-icon">⇅</span>
+              </th>
+              <th data-col="count" class="sortable num">
+                總筆數 <span class="sort-icon">⇅</span>
+              </th>
+              <th data-col="lt09" class="sortable num">
+                未達成筆數 <span class="sort-icon">⇅</span>
+              </th>
+              <th data-col="efficiency" class="sortable num">
+                達成率 <span class="sort-icon">⇅</span>
+              </th>
+              <th data-col="productionHours" class="sortable num">
+                生產工時 <span class="sort-icon">⇅</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody id="tableBody">
+            <tr>
+              <td colspan="6" class="loading-cell">載入中...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ═══ Charts ═══ -->
+    <section class="charts-grid">
+      <div class="chart-card">
+        <h3>📈 月度效率趨勢</h3>
+        <div class="chart-wrapper">
+          <canvas id="trendChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <h3>👥 人員效率比較</h3>
+        <div class="chart-wrapper">
+          <canvas id="comparisonChart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ Loading Overlay ═══ -->
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+      <p>正在載入資料...</p>
+    </div>
+
+    <!-- ═══ Error State ═══ -->
+    <div class="error-state" id="errorState" style="display: none">
+      <div class="error-icon">⚠️</div>
+      <h3>無法載入資料</h3>
+      <p id="errorMessage">請檢查網路連線或 Firebase 設定</p>
+      <button class="btn-retry" onclick="location.reload()">
+        重新載入
+      </button>
+    </div>
+  </div>
+
+  <!-- Firebase SDK (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script
+    src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+  <!-- App -->
+  <script src="app.js"></script>
+</body>
+
+</html>
