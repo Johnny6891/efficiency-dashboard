@@ -1,0 +1,15 @@
+﻿{
+  "name": "sync-efficiency",
+  "version": "1.0.0",
+  "description": "Sync efficiency stats from Google Sheets to Firestore",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "check": "node --check index.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "firebase-admin": "^12.0.0",
+    "googleapis": "^140.0.0"
+  }
+}

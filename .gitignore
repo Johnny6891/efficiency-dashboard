@@ -1,6 +1,7 @@
-﻿sync-efficiency/env.yaml
-sync-efficiency/*.json
+sync-efficiency/env.yaml
 node_modules/
 sync-efficiency/node_modules/
 .env
 .env.*
+!.env.example
+!sync-efficiency/.env.example
