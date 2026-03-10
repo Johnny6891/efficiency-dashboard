@@ -32,8 +32,8 @@ jobs:
           REF_SHEET_ID: ${{ secrets.REF_SHEET_ID }}
           REF_SHEET_NAME: "勿修改/全部同事DATA"
           REF_GROUP_HEADER: "組別"
-          REF_STATUS_HEADER: "狀態"
-          REF_NAME_HEADER: "同事名稱"
+          REF_STATUS_HEADER: "狀態(1表示顯示0不顯示)"
+          REF_NAME_HEADER: "人員名稱"
           INCLUDE_GROUP: "2"
           INCLUDE_STATUS: "1"
           DATA_SHEETS_JSON: ${{ secrets.DATA_SHEETS_JSON }}
