@@ -143,16 +143,6 @@ function setupEventListeners() {
       }, 200);
     });
 
-  // 重置
-  document.getElementById('btnReset').addEventListener('click', () => {
-    state.filterMonth = 'all';
-    state.filterPerson = 'all';
-    state.searchText = '';
-    document.getElementById('filterMonth').value = 'all';
-    document.getElementById('filterPerson').value = 'all';
-    document.getElementById('searchInput').value = '';
-    applyFiltersAndRender();
-  });
 
   // 表頭排序
   document.querySelectorAll('th.sortable').forEach((th) => {
@@ -349,23 +339,43 @@ function renderTrendChart(data) {
   const ctx = document.getElementById('trendChart');
   if (state.charts.trend) state.charts.trend.destroy();
 
+  // 取得所選年份（從 filterMonth 取年，若無則取最新年份）
+  let selectedYear;
+  if (state.filterMonth && state.filterMonth !== 'all') {
+    selectedYear = String(state.filterMonth).split('/')[0];
+  } else {
+    // 從 rawData 取最新年份
+    const years = state.rawData
+      .map((d) => String(d.yearMonth).split('/')[0])
+      .filter(Boolean);
+    selectedYear = years.length > 0 ? Math.max(...years.map(Number)).toString() : null;
+  }
+
+  // 從全量資料過濾該年份所有月份（不受人員篩選影響）
+  const yearData = state.rawData.filter(
+    (d) => String(d.yearMonth).split('/')[0] === selectedYear
+  );
+
+  // 按月份彙總加權平均效率
   const monthMap = {};
-  data.forEach((d) => {
+  yearData.forEach((d) => {
     if (d.efficiency == null) return;
     if (!monthMap[d.yearMonth]) {
-      monthMap[d.yearMonth] = { sum: 0, weightSum: 0, count: 0 };
+      monthMap[d.yearMonth] = { sum: 0, weightSum: 0 };
     }
     monthMap[d.yearMonth].sum += d.efficiency * d.count;
     monthMap[d.yearMonth].weightSum += d.count;
-    monthMap[d.yearMonth].count++;
   });
 
+  // 月份排序（1~12）
   const months = Object.keys(monthMap).sort((a, b) => {
-    const [ay, am] = a.split('/').map(Number);
-    const [by, bm] = b.split('/').map(Number);
-    return ay * 100 + am - (by * 100 + bm);
+    const am = Number(a.split('/')[1]);
+    const bm = Number(b.split('/')[1]);
+    return am - bm;
   });
 
+  // x 軸只顯示月份數字
+  const labels = months.map((m) => m.split('/')[1] + '月');
   const values = months.map((m) => {
     const g = monthMap[m];
     return g.weightSum > 0
@@ -376,7 +386,7 @@ function renderTrendChart(data) {
   state.charts.trend = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: months,
+      labels: labels,
       datasets: [
         {
           label: '平均效率 (%)',
