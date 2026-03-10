@@ -93,6 +93,8 @@ async function readSheet(sheetsClient, spreadsheetId, sheetName) {
   const result = await sheetsClient.spreadsheets.values.get({
     spreadsheetId,
     range: `'${sheetName}'`,
+    valueRenderOption: 'UNFORMATTED_VALUE',
+    dateTimeRenderOption: 'SERIAL_NUMBER',
   });
   return result.data.values || [];
 }
