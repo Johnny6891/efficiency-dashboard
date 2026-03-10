@@ -11,6 +11,10 @@ const FIREBASE_CONFIG = {
   projectId: 'work-report-system-26c12',
 };
 
+// App Check — reCAPTCHA Enterprise Site Key
+// 前往 Firebase Console → App Check 註冊後取得 site key
+const RECAPTCHA_SITE_KEY = 'YOUR_RECAPTCHA_ENTERPRISE_SITE_KEY'; // TODO: 替換
+
 // ?? App State ??
 const state = {
   rawData: [],
@@ -29,22 +33,43 @@ const state = {
 // 閮餃? datalabels ?辣
 Chart.register(ChartDataLabels);
 
+async function fetchDataWithRetry(db, maxRetries = 3) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const [snapshot, metaDoc] = await Promise.all([
+        db.collection('efficiency_stats').get(),
+        db.collection('efficiency_stats').doc('_metadata').get().catch(() => null),
+      ]);
+      return { snapshot, metaDoc };
+    } catch (err) {
+      if (attempt === maxRetries) throw err;
+      const delay = Math.pow(2, attempt) * 500;
+      console.warn(
+        `Firestore 連線失敗 (第 ${attempt + 1} 次)，${delay}ms 後重試...`,
+        err,
+      );
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+}
+
 document.addEventListener('DOMContentLoaded', init);
 
 async function init() {
   try {
     firebase.initializeApp(FIREBASE_CONFIG);
+
+    // App Check 防爬蟲
+    const appCheck = firebase.appCheck();
+    appCheck.activate(
+      new firebase.appCheck.ReCaptchaEnterpriseProvider(RECAPTCHA_SITE_KEY),
+      true,
+    );
+
     const db = firebase.firestore();
 
     // ??頛蝯梯?鞈???metadata
-    const [snapshot, metaDoc] = await Promise.all([
-      db.collection('efficiency_stats').get(),
-      db
-        .collection('efficiency_stats')
-        .doc('_metadata')
-        .get()
-        .catch(() => null),
-    ]);
+    const { snapshot, metaDoc } = await fetchDataWithRetry(db);
 
     // 閫??鞈?嚗???_metadata ?辣嚗?
     state.rawData = [];
@@ -85,7 +110,6 @@ function populateFilters() {
   const months = [...new Set(state.rawData.map((d) => d.yearMonth))];
   const persons = [...new Set(state.rawData.map((d) => d.person))];
 
-  // 撟湔???嚗?摨?
   months.sort((a, b) => {
     const [ay, am] = a.split('/').map(Number);
     const [by, bm] = b.split('/').map(Number);
@@ -94,15 +118,22 @@ function populateFilters() {
   persons.sort();
 
   const monthSelect = document.getElementById('filterMonth');
-  months.forEach((m) => {
-    const opt = document.createElement('option');
-    opt.value = m;
-    opt.textContent = m;
-    monthSelect.appendChild(opt);
-  });
+  monthSelect.innerHTML = '';
 
-  // ?身?豢?餈?隞踝?months 撌脤?摨?蝚砌????堆?
-  if (months.length > 0) {
+  if (months.length === 0) {
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.disabled = true;
+    placeholder.selected = true;
+    placeholder.textContent = '無資料';
+    monthSelect.appendChild(placeholder);
+  } else {
+    months.forEach((m) => {
+      const opt = document.createElement('option');
+      opt.value = m;
+      opt.textContent = m;
+      monthSelect.appendChild(opt);
+    });
     monthSelect.value = months[0];
     state.filterMonth = months[0];
   }
@@ -267,14 +298,14 @@ function renderTable(data) {
 
   if (data.length === 0) {
     tbody.innerHTML = `
-      <tr>
-        <td colspan="6">
-          <div class="empty-state">
-            <div class="empty-icon">?</div>
-            <p>瘝?蝚血?璇辣????/p>
-          </div>
-        </td>
-      </tr>`;
+    < tr >
+    <td colspan="6">
+      <div class="empty-state">
+        <div class="empty-icon">?</div>
+        <p>瘝?蝚血?璇辣????/p>
+      </div>
+    </td>
+      </tr > `;
     return;
   }
 
@@ -283,7 +314,7 @@ function renderTable(data) {
 
   data.forEach((d, i) => {
     const tr = document.createElement('tr');
-    tr.style.animationDelay = `${Math.min(i * 0.02, 0.5)}s`;
+    tr.style.animationDelay = `${ Math.min(i * 0.02, 0.5) } s`;
 
     const effClass = getEfficiencyClass(d.efficiency);
     const effPct = d.efficiency != null ? Math.round(d.efficiency * 100) : 0;
@@ -291,7 +322,7 @@ function renderTable(data) {
       d.efficiency != null ? Math.round(d.efficiency * 100) + '%' : '-';
 
     tr.innerHTML = `
-      <td>${escapeHtml(d.yearMonth)}</td>
+    < td > ${ escapeHtml(d.yearMonth) }</td >
       <td><strong>${escapeHtml(d.person)}</strong></td>
       <td class="num">${d.count}</td>
       <td class="num">${d.lt09 > 0
@@ -322,7 +353,7 @@ function updateSortIndicators() {
   document.querySelectorAll('th.sortable').forEach((th) => {
     th.classList.remove('sorted-asc', 'sorted-desc');
     if (th.dataset.col === state.sortCol) {
-      th.classList.add(`sorted-${state.sortDir}`);
+      th.classList.add(`sorted - ${ state.sortDir } `);
     }
   });
 }
@@ -419,7 +450,7 @@ function renderTrendChart(data) {
           cornerRadius: 8,
           padding: 12,
           callbacks: {
-            label: (ctx) => `??: ${ctx.parsed.y}%`,
+            label: (ctx) => `??: ${ ctx.parsed.y }% `,
           },
         },
       },
@@ -533,7 +564,7 @@ function renderComparisonChart(data) {
           cornerRadius: 8,
           padding: 12,
           callbacks: {
-            label: (ctx) => `??: ${ctx.parsed.y}%`,
+            label: (ctx) => `??: ${ ctx.parsed.y }% `,
           },
         },
       },
