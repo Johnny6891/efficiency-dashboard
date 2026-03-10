@@ -158,6 +158,43 @@
 
 ### 待辦
 
-- 🔲 執行 `firebase deploy --only hosting` 將前端部署上線
-- 🔲 重新跑 `Run workflow`（GitHub Actions）讓修正後的 sync 重新寫入正確數據
-- 🔲 確認前端數據顯示正常
+- ✅ 執行 `firebase deploy --only hosting` 將前端部署上線
+- ✅ 重新跑 `Run workflow`（GitHub Actions）讓修正後的 sync 重新寫入正確數據
+- ✅ 確認前端數據顯示正常（2026-03-10 完成）
+
+---
+
+## 追加紀錄（同日第五段 — 同步觸發方式與一鍵執行）
+
+### 使用者提問
+
+- Google Sheet 資料更新後，Firestore 會如何更新。
+- 是否只能到 GitHub 手動按 `Run workflow`。
+- 如何使用第 2 種（GitHub CLI）方式。
+- 希望提供真正可直接執行的一鍵腳本，而非每次複製貼上指令。
+
+### 已完成事項
+
+1. 同步更新機制已釐清（依程式實作）：
+- 每次執行會重算統計，先刪除本次涵蓋月份（`coveredMonths`）的舊文件（保留 `_metadata`），再批次寫入新資料，最後更新 `_metadata`。
+
+2. 觸發方式已整理：
+- 排程自動跑（每日台北時間 01:00）。
+- GitHub Actions UI `Run workflow`。
+- GitHub CLI：`gh workflow run "Sync Efficiency Stats" --ref main`。
+- 本機直接跑 `runSync()`（需自行準備環境變數）。
+
+3. 已新增一鍵執行腳本：
+- `scripts/run-sync-workflow.ps1`：自動檢查 `gh`/登入狀態、觸發 workflow、抓最新 run、等待結果、失敗時輸出 failed logs。
+- `run-sync-workflow.cmd`：包裝 PowerShell 腳本，可直接雙擊或單行命令啟動。
+
+### 目前阻塞
+
+- 若 `gh` 尚未登入（或缺少 `repo/workflow` 權限），無法觸發 workflow。
+- 若環境對 PowerShell 腳本有限制，需透過 `run-sync-workflow.cmd` 或 `ExecutionPolicy Bypass` 執行。
+
+### 下一步行動
+
+1. 直接執行 `run-sync-workflow.cmd` 觸發並監看同步結果。
+2. 若執行失敗，依腳本輸出的 failed logs 針對失敗步驟修正。
+3. 確認 Firestore `efficiency_stats` 與 `_metadata` 已反映最新 Sheet 資料。

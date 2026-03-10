@@ -1,17 +1,17 @@
-/* ═══════════════════════════════════════
-   工時效率統計儀表板 - Application Logic
-   ═══════════════════════════════════════ */
+﻿/* ????????????????????????????????????????
+   撌交???蝯梯??銵冽 - Application Logic
+   ????????????????????????????????????????*/
 
-// ── Firebase Configuration ──
-// ⚠️ 請填入你的 Firebase Web App 設定
-// 到 Firebase Console → 專案設定 → 一般 → 你的應用程式 → Firebase SDK snippet
+// ?? Firebase Configuration ??
+// ?? 隢‵?乩???Firebase Web App 閮剖?
+// ??Firebase Console ??撠?閮剖? ??銝????雿??蝔? ??Firebase SDK snippet
 const FIREBASE_CONFIG = {
-  apiKey: 'AIzaSyAzsCS9fVmD-XSMLkpa8GVVSGzOIJ4k4cY', // ← 請替換
+  apiKey: 'AIzaSyAzsCS9fVmD-XSMLkpa8GVVSGzOIJ4k4cY', // ??隢??
   authDomain: 'work-report-system-26c12.firebaseapp.com',
   projectId: 'work-report-system-26c12',
 };
 
-// ── App State ──
+// ?? App State ??
 const state = {
   rawData: [],
   filteredData: [],
@@ -23,10 +23,10 @@ const state = {
   charts: { trend: null, comparison: null },
 };
 
-// ═══════════════════════════════════════
+// ????????????????????????????????????????
 // Initialization
-// ═══════════════════════════════════════
-// 註冊 datalabels 插件
+// ????????????????????????????????????????
+// 閮餃? datalabels ?辣
 Chart.register(ChartDataLabels);
 
 document.addEventListener('DOMContentLoaded', init);
@@ -36,7 +36,7 @@ async function init() {
     firebase.initializeApp(FIREBASE_CONFIG);
     const db = firebase.firestore();
 
-    // 同時載入統計資料和 metadata
+    // ??頛蝯梯?鞈???metadata
     const [snapshot, metaDoc] = await Promise.all([
       db.collection('efficiency_stats').get(),
       db
@@ -46,46 +46,46 @@ async function init() {
         .catch(() => null),
     ]);
 
-    // 解析資料（排除 _metadata 文件）
+    // 閫??鞈?嚗???_metadata ?辣嚗?
     state.rawData = [];
     snapshot.forEach((doc) => {
       if (doc.id === '_metadata') return;
       state.rawData.push({ id: doc.id, ...doc.data() });
     });
 
-    // 顯示最後同步時間
+    // 憿舐內?敺?甇交???
     if (metaDoc && metaDoc.exists) {
       const meta = metaDoc.data();
       const syncTime = meta.lastSyncTime
         ? new Date(meta.lastSyncTime).toLocaleString('zh-TW')
-        : '未知';
+        : '?芰';
       document.getElementById('lastUpdated').textContent =
-        '最後同步: ' + syncTime;
+        '?敺?甇? ' + syncTime;
     } else {
-      document.getElementById('lastUpdated').textContent = '已連線';
+      document.getElementById('lastUpdated').textContent = '撌脤??';
     }
 
-    // 初始化 UI
+    // ????UI
     populateFilters();
     setupEventListeners();
     applyFiltersAndRender();
 
-    // 隱藏 loading
+    // ?梯? loading
     document.getElementById('loadingOverlay').classList.add('hidden');
   } catch (err) {
-    console.error('初始化失敗:', err);
+    console.error('???仃??', err);
     showError(err.message);
   }
 }
 
-// ═══════════════════════════════════════
+// ????????????????????????????????????????
 // Filters
-// ═══════════════════════════════════════
+// ????????????????????????????????????????
 function populateFilters() {
   const months = [...new Set(state.rawData.map((d) => d.yearMonth))];
   const persons = [...new Set(state.rawData.map((d) => d.person))];
 
-  // 年月排序（降序）
+  // 撟湔???嚗?摨?
   months.sort((a, b) => {
     const [ay, am] = a.split('/').map(Number);
     const [by, bm] = b.split('/').map(Number);
@@ -101,7 +101,7 @@ function populateFilters() {
     monthSelect.appendChild(opt);
   });
 
-  // 預設選最近月份（months 已降序，第一個即最新）
+  // ?身?豢?餈?隞踝?months 撌脤?摨?蝚砌????堆?
   if (months.length > 0) {
     monthSelect.value = months[0];
     state.filterMonth = months[0];
@@ -131,7 +131,7 @@ function setupEventListeners() {
       applyFiltersAndRender();
     });
 
-  // 搜尋防抖
+  // ???脫?
   let searchTimer;
   document
     .getElementById('searchInput')
@@ -144,7 +144,7 @@ function setupEventListeners() {
     });
 
 
-  // 表頭排序
+  // 銵券??
   document.querySelectorAll('th.sortable').forEach((th) => {
     th.addEventListener('click', () => {
       const col = th.dataset.col;
@@ -159,11 +159,11 @@ function setupEventListeners() {
   });
 }
 
-// ═══════════════════════════════════════
+// ????????????????????????????????????????
 // Filter + Sort + Render Pipeline
-// ═══════════════════════════════════════
+// ????????????????????????????????????????
 function applyFiltersAndRender() {
-  // 篩選
+  // 蝭拚
   let data = state.rawData.filter((d) => {
     if (state.filterMonth !== 'all' && d.yearMonth !== state.filterMonth)
       return false;
@@ -174,7 +174,7 @@ function applyFiltersAndRender() {
     return true;
   });
 
-  // 排序
+  // ??
   const col = state.sortCol;
   const dir = state.sortDir === 'asc' ? 1 : -1;
 
@@ -182,19 +182,19 @@ function applyFiltersAndRender() {
     let va = a[col];
     let vb = b[col];
 
-    // 年月特殊排序
+    // 撟湔??寞???
     if (col === 'yearMonth') {
       const [ay, am] = String(va).split('/').map(Number);
       const [by, bm] = String(vb).split('/').map(Number);
       return ((ay * 100 + am) - (by * 100 + bm)) * dir;
     }
 
-    // 字串 vs 數字
+    // 摮葡 vs ?詨?
     if (typeof va === 'string') {
       return va.localeCompare(vb, 'zh-TW') * dir;
     }
 
-    // null/undefined 排最後
+    // null/undefined ??敺?
     if (va == null) return 1;
     if (vb == null) return -1;
 
@@ -209,15 +209,15 @@ function applyFiltersAndRender() {
   updateSortIndicators();
 }
 
-// ═══════════════════════════════════════
+// ????????????????????????????????????????
 // Summary Cards
-// ═══════════════════════════════════════
+// ????????????????????????????????????????
 function renderSummaryCards(data) {
   const persons = new Set(data.map((d) => d.person));
-  const totalRecords = data.length;
+  const totalRecords = data.reduce((sum, d) => sum + (Number(d.count) || 0), 0);
   const totalHours = data.reduce((s, d) => s + (d.productionHours || 0), 0);
 
-  // 加權平均效率（以 count 為權重）
+  // ??撟喳???嚗誑 count ?箸???
   let weightedSum = 0;
   let weightTotal = 0;
   data.forEach((d) => {
@@ -256,29 +256,29 @@ function animateValue(id, target) {
   requestAnimationFrame(tick);
 }
 
-// ═══════════════════════════════════════
+// ????????????????????????????????????????
 // Data Table
-// ═══════════════════════════════════════
+// ????????????????????????????????????????
 function renderTable(data) {
   const tbody = document.getElementById('tableBody');
   const countEl = document.getElementById('recordCount');
 
-  countEl.textContent = `共 ${data.length} 筆`;
+  countEl.textContent = `??${data.length} 蝑;
 
   if (data.length === 0) {
     tbody.innerHTML = `
       <tr>
         <td colspan="6">
           <div class="empty-state">
-            <div class="empty-icon">📭</div>
-            <p>沒有符合條件的資料</p>
+            <div class="empty-icon">?</div>
+            <p>瘝?蝚血?璇辣????/p>
           </div>
         </td>
       </tr>`;
     return;
   }
 
-  // 使用 DocumentFragment 提升效能
+  // 雿輻 DocumentFragment ???
   const frag = document.createDocumentFragment();
 
   data.forEach((d, i) => {
@@ -327,9 +327,9 @@ function updateSortIndicators() {
   });
 }
 
-// ═══════════════════════════════════════
+// ????????????????????????????????????????
 // Charts
-// ═══════════════════════════════════════
+// ????????????????????????????????????????
 function renderCharts(data) {
   renderTrendChart(data);
   renderComparisonChart(data);
@@ -339,24 +339,24 @@ function renderTrendChart(data) {
   const ctx = document.getElementById('trendChart');
   if (state.charts.trend) state.charts.trend.destroy();
 
-  // 取得所選年份（從 filterMonth 取年，若無則取最新年份）
+  // ????詨僑隞踝?敺?filterMonth ?僑嚗?∪????啣僑隞踝?
   let selectedYear;
   if (state.filterMonth && state.filterMonth !== 'all') {
     selectedYear = String(state.filterMonth).split('/')[0];
   } else {
-    // 從 rawData 取最新年份
+    // 敺?rawData ???啣僑隞?
     const years = state.rawData
       .map((d) => String(d.yearMonth).split('/')[0])
       .filter(Boolean);
     selectedYear = years.length > 0 ? Math.max(...years.map(Number)).toString() : null;
   }
 
-  // 從全量資料過濾該年份所有月份（不受人員篩選影響）
+  // 敺????瞈曇府撟港遢???隞踝?銝?鈭箏蝭拚敶梢嚗?
   const yearData = state.rawData.filter(
     (d) => String(d.yearMonth).split('/')[0] === selectedYear
   );
 
-  // 按月份彙總加權平均效率
+  // ??隞賢?蝮賢?甈像????
   const monthMap = {};
   yearData.forEach((d) => {
     if (d.efficiency == null) return;
@@ -367,15 +367,15 @@ function renderTrendChart(data) {
     monthMap[d.yearMonth].weightSum += d.count;
   });
 
-  // 月份排序（1~12）
+  // ?遢??嚗?~12嚗?
   const months = Object.keys(monthMap).sort((a, b) => {
     const am = Number(a.split('/')[1]);
     const bm = Number(b.split('/')[1]);
     return am - bm;
   });
 
-  // x 軸只顯示月份數字
-  const labels = months.map((m) => m.split('/')[1] + '月');
+  // x 頠詨憿舐內?遢?詨?
+  const labels = months.map((m) => m.split('/')[1] + '??);
   const values = months.map((m) => {
     const g = monthMap[m];
     return g.weightSum > 0
@@ -389,7 +389,7 @@ function renderTrendChart(data) {
       labels: labels,
       datasets: [
         {
-          label: '平均效率 (%)',
+          label: '撟喳??? (%)',
           data: values,
           borderColor: '#b8a9c9',
           backgroundColor: 'rgba(184, 169, 201, 0.12)',
@@ -419,7 +419,7 @@ function renderTrendChart(data) {
           cornerRadius: 8,
           padding: 12,
           callbacks: {
-            label: (ctx) => `效率: ${ctx.parsed.y}%`,
+            label: (ctx) => `??: ${ctx.parsed.y}%`,
           },
         },
       },
@@ -447,7 +447,7 @@ function renderComparisonChart(data) {
   const ctx = document.getElementById('comparisonChart');
   if (state.charts.comparison) state.charts.comparison.destroy();
 
-  // 按人員計算整體效率
+  // ?犖?∟?蝞擃???
   const personMap = {};
   data.forEach((d) => {
     if (d.efficiency == null) return;
@@ -477,7 +477,7 @@ function renderComparisonChart(data) {
       labels,
       datasets: [
         {
-          label: '個人成績(效率90%以上)',
+          label: '?犖?蜀(??90%隞乩?)',
           data: values,
           backgroundColor: 'rgba(155, 184, 201, 0.65)',
           borderColor: '#9bb8c9',
@@ -487,7 +487,7 @@ function renderComparisonChart(data) {
           categoryPercentage: 0.8,
         },
         {
-          label: '達成目標(達成率90%以上)',
+          label: '???格?(????0%隞乩?)',
           data: Array(labels.length).fill(90),
           type: 'line',
           borderColor: '#c9908a',
@@ -533,7 +533,7 @@ function renderComparisonChart(data) {
           cornerRadius: 8,
           padding: 12,
           callbacks: {
-            label: (ctx) => `效率: ${ctx.parsed.y}%`,
+            label: (ctx) => `??: ${ctx.parsed.y}%`,
           },
         },
       },
@@ -562,9 +562,9 @@ function renderComparisonChart(data) {
   });
 }
 
-// ═══════════════════════════════════════
+// ????????????????????????????????????????
 // Helpers
-// ═══════════════════════════════════════
+// ????????????????????????????????????????
 function getEfficiencyClass(eff) {
   if (eff == null) return '';
   if (eff >= 0.9) return 'high';
@@ -584,7 +584,8 @@ function showError(message) {
   document.getElementById('errorState').style.display = 'block';
   document.getElementById('errorMessage').textContent = message;
 
-  // 隱藏主要內容
+  // ?梯?銝餉??批捆
   document.querySelectorAll('.summary-grid, .filters-bar, .table-section, .charts-grid')
     .forEach((el) => (el.style.display = 'none'));
 }
+
