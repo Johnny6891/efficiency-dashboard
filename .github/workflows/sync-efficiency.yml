@@ -25,6 +25,26 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Debug credential projects
+        env:
+          GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+          FIREBASE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+        run: |
+          node -e "
+            function printCred(name, raw) {
+              try {
+                const c = JSON.parse(raw || '{}');
+                console.log(name + ' project_id=' + (c.project_id || '<missing>'));
+                console.log(name + ' client_email=' + (c.client_email || '<missing>'));
+              } catch (e) {
+                console.error(name + ' JSON parse failed:', e.message);
+                process.exitCode = 1;
+              }
+            }
+            printCred('GOOGLE_CREDENTIALS', process.env.GOOGLE_CREDENTIALS);
+            printCred('FIREBASE_CREDENTIALS', process.env.FIREBASE_CREDENTIALS);
+          "
+
       - name: Run sync
         env:
           GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
