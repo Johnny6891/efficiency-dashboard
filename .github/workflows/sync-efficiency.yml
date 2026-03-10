@@ -25,6 +25,13 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+- name: Debug credentials project
+  env:
+    GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+  run: |
+    node -e "const c=JSON.parse(process.env.GOOGLE_CREDENTIALS); console.log('project_id=', c.project_id); console.log('client_email=', c.client_email);"
+
+
       - name: Run sync
         env:
           GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
