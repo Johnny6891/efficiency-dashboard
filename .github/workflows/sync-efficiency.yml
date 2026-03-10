@@ -28,7 +28,7 @@ jobs:
       - name: Debug credential projects
         env:
           GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
-          FIREBASE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+          FIREBASE_CREDENTIALS: ${{ secrets.FIREBASE_CREDENTIALS }}
         run: |
           node -e "
             function printCred(name, raw) {
@@ -48,7 +48,7 @@ jobs:
       - name: Run sync
         env:
           GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
-          FIREBASE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+          FIREBASE_CREDENTIALS: ${{ secrets.FIREBASE_CREDENTIALS }}
           REF_SHEET_ID: ${{ secrets.REF_SHEET_ID }}
           REF_SHEET_NAME: "勿修改/全部同事DATA"
           REF_GROUP_HEADER: "組別"
