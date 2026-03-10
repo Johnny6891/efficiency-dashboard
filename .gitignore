@@ -1,7 +1,19 @@
-sync-efficiency/env.yaml
+﻿sync-efficiency/env.yaml
 node_modules/
 sync-efficiency/node_modules/
 .env
 .env.*
 !.env.example
 !sync-efficiency/.env.example
+
+# Service account credentials and local secret files
+bionic-union-456401-c6-73fa3123aba0.json
+*-firebase-adminsdk-*.json
+*service-account*.json
+*credentials*.json
+secrets/
+*.pem
+*.p12
+
+# Conversation summaries (local only)
+CONVERSATION_SUMMARY_*.md
