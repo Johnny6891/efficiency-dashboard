@@ -134,19 +134,50 @@ function parseSheetDate(value) {
   if (value === undefined || value === null || value === '') return null;
 
   if (typeof value === 'number' && Number.isFinite(value)) {
+    // Google Sheet time-only serial (e.g. 0:00) should not be treated as a date.
+    if (value < 1) return null;
     const epoch = new Date(Date.UTC(1899, 11, 30));
     return new Date(epoch.getTime() + value * 24 * 60 * 60 * 1000);
   }
 
-  const maybeNumber = Number(value);
-  if (!Number.isNaN(maybeNumber) && String(value).trim() !== '') {
+  const text = String(value).trim();
+  if (!text) return null;
+
+  if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(text)) {
+    return null;
+  }
+
+  const ymdMatch = text.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/);
+  if (ymdMatch) {
+    const year = Number(ymdMatch[1]);
+    const month = Number(ymdMatch[2]);
+    const day = Number(ymdMatch[3]);
+    if (
+      Number.isInteger(year) &&
+      Number.isInteger(month) &&
+      Number.isInteger(day)
+    ) {
+      return new Date(Date.UTC(year, month - 1, day));
+    }
+  }
+
+  const maybeNumber = Number(text);
+  if (!Number.isNaN(maybeNumber)) {
+    if (maybeNumber < 1) return null;
     const epoch = new Date(Date.UTC(1899, 11, 30));
     return new Date(epoch.getTime() + maybeNumber * 24 * 60 * 60 * 1000);
   }
 
-  const parsed = new Date(value);
+  const parsed = new Date(text);
   if (Number.isNaN(parsed.getTime())) return null;
   return parsed;
+}
+
+function formatDateYYYYMMDD(date) {
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  return `${year}/${month}/${day}`;
 }
 
 function toNumber(value) {
@@ -205,6 +236,7 @@ function mergeStats(target, partial) {
 
 function calculateStats(rows, validPersons, config) {
   const stats = {};
+  let latestDate = null;
   for (let i = 1; i < rows.length; i += 1) {
     const row = rows[i];
     if (!row) continue;
@@ -216,11 +248,15 @@ function calculateStats(rows, validPersons, config) {
     const date = parseSheetDate(dateRaw);
     if (!date || Number.isNaN(date.getTime())) continue;
 
-    if (config.syncScope === 'current_year' && date.getFullYear() !== config.syncYear) {
+    if (config.syncScope === 'current_year' && date.getUTCFullYear() !== config.syncYear) {
       continue;
     }
 
-    const yearMonth = `${date.getFullYear()}/${date.getMonth() + 1}`;
+    if (!latestDate || date.getTime() > latestDate.getTime()) {
+      latestDate = date;
+    }
+
+    const yearMonth = `${date.getUTCFullYear()}/${date.getUTCMonth() + 1}`;
     const productionHours = toNumber(row[config.colProductionHours]);
 
     const bfRaw = row[config.colBf];
@@ -264,7 +300,7 @@ function calculateStats(rows, validPersons, config) {
       : null;
   }
 
-  return stats;
+  return { stats, latestDate };
 }
 
 async function deleteCoveredMonths(db, collectionName, monthsToReplace) {
@@ -309,12 +345,19 @@ async function runSync() {
   const validPersons = await getValidPersons(sheetsClient, config);
   const mergedStats = {};
   let sourceRows = 0;
+  let latestDataDate = null;
 
   for (const sheet of config.dataSheets) {
     const rows = await readSheet(sheetsClient, sheet.id, sheet.name || DEFAULTS.dataSheetName);
     sourceRows += Math.max(rows.length - 1, 0);
     const partial = calculateStats(rows, validPersons, config);
-    mergeStats(mergedStats, partial);
+    mergeStats(mergedStats, partial.stats);
+    if (
+      partial.latestDate &&
+      (!latestDataDate || partial.latestDate.getTime() > latestDataDate.getTime())
+    ) {
+      latestDataDate = partial.latestDate;
+    }
   }
 
   for (const row of Object.values(mergedStats)) {
@@ -329,6 +372,7 @@ async function runSync() {
 
   await db.collection(config.collection).doc('_metadata').set({
     lastSyncTime: new Date().toISOString(),
+    latestDataDate: latestDataDate ? formatDateYYYYMMDD(latestDataDate) : null,
     recordCount: writtenCount,
     validPersonsCount: validPersons.size,
     coveredMonths: Array.from(coveredMonths),
@@ -351,6 +395,7 @@ async function runSync() {
     writtenCount,
     syncScope: config.syncScope,
     syncYear: config.syncScope === 'current_year' ? config.syncYear : null,
+    latestDataDate: latestDataDate ? formatDateYYYYMMDD(latestDataDate) : null,
   };
 }
 

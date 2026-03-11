@@ -30,7 +30,7 @@ async function init() {
     state.rawData = docs.filter((d) => d.id !== '_metadata');
 
     renderLastUpdated(meta);
-    renderLatestDataDate();
+    renderLatestDataDate(meta);
     populateFilters();
     setupEventListeners();
     applyFiltersAndRender();
@@ -140,12 +140,20 @@ function getLatestYearMonth() {
   return `${latest.year}/${String(latest.month).padStart(2, '0')}`;
 }
 
-function renderLatestDataDate() {
+function renderLatestDataDate(meta) {
   const el = document.getElementById('latestDataDate');
   if (!el) return;
 
+  const latestDate = meta && typeof meta.latestDataDate === 'string'
+    ? meta.latestDataDate.trim()
+    : '';
+  if (latestDate) {
+    el.textContent = '\u8cc7\u6599\u6700\u65b0\u65e5\u671f\uff1a' + latestDate;
+    return;
+  }
+
   const latest = getLatestYearMonth();
-  el.textContent = latest ? `資料最新年月：${latest}` : '資料最新年月：--';
+  el.textContent = latest ? '\u8cc7\u6599\u6700\u65b0\u65e5\u671f\uff1a' + latest + '/--' : '\u8cc7\u6599\u6700\u65b0\u65e5\u671f\uff1a--';
 }
 
 function renderLastUpdated(meta) {
