@@ -1,0 +1,49 @@
+﻿name: Deploy Hosting
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - public/**
+      - firebase.json
+      - .firebaserc
+      - .github/workflows/deploy-hosting.yml
+  workflow_dispatch:
+
+concurrency:
+  group: hosting-deploy-main
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Prepare Firebase credentials
+        shell: bash
+        env:
+          FIREBASE_CREDENTIALS: ${{ secrets.FIREBASE_CREDENTIALS }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${FIREBASE_CREDENTIALS:-}" ]]; then
+            echo "::error::Missing FIREBASE_CREDENTIALS secret."
+            exit 1
+          fi
+
+          cred_path="$RUNNER_TEMP/firebase-credentials.json"
+          printf '%s' "$FIREBASE_CREDENTIALS" > "$cred_path"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$cred_path" >> "$GITHUB_ENV"
+
+      - name: Deploy to Firebase Hosting
+        run: npx --yes firebase-tools deploy --only hosting --project work-report-system-26c12 --non-interactive
