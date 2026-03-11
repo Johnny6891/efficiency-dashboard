@@ -591,8 +591,8 @@ function renderComparisonChart(data) {
         datalabels: {
           display: (context) => context.dataset.type !== 'line',
           anchor: (context) => (Number(context.raw) >= 90 ? 'start' : 'end'),
-          align: 'top',
-          offset: (context) => (Number(context.raw) >= 90 ? 2 : 4),
+          align: (context) => (Number(context.raw) >= 90 ? 'end' : 'top'),
+          offset: (context) => (Number(context.raw) >= 90 ? 6 : 4),
           clamp: true,
           clip: true,
           formatter: (v) => `${v}%`,
