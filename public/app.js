@@ -53,6 +53,39 @@ async function fetchDataWithRetry(db, maxRetries = 3) {
   }
 }
 
+function parseYearMonth(value) {
+  const match = String(value || '').match(/^(\d{4})[\/-](\d{1,2})$/);
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) {
+    return null;
+  }
+
+  return { year, month, key: year * 100 + month };
+}
+
+function getLatestYearMonth() {
+  const latest = state.rawData
+    .map((d) => parseYearMonth(d.yearMonth))
+    .filter(Boolean)
+    .sort((a, b) => b.key - a.key)[0];
+
+  if (!latest) return null;
+  return String(latest.year) + '/' + String(latest.month).padStart(2, '0');
+}
+
+function renderLatestDataDate() {
+  const latestDataDateEl = document.getElementById('latestDataDate');
+  if (!latestDataDateEl) return;
+
+  const latestYearMonth = getLatestYearMonth();
+  latestDataDateEl.textContent = latestYearMonth
+    ? '???????' + latestYearMonth
+    : '???????--';
+}
+
 document.addEventListener('DOMContentLoaded', init);
 
 async function init() {
@@ -91,6 +124,8 @@ async function init() {
     }
 
     // ????UI
+    renderLatestDataDate();
+
     populateFilters();
     setupEventListeners();
     applyFiltersAndRender();
@@ -243,9 +278,22 @@ function applyFiltersAndRender() {
 // ????????????????????????????????????????
 // Summary Cards
 // ????????????????????????????????????????
+function getSummaryRecordTotal() {
+  return state.rawData
+    .filter((d) => {
+      if (state.filterMonth !== 'all' && d.yearMonth !== state.filterMonth) {
+        return false;
+      }
+      if (state.filterPerson !== 'all' && d.person !== state.filterPerson) {
+        return false;
+      }
+      return true;
+    })
+    .reduce((sum, d) => sum + (Number(d.count) || 0), 0);
+}
 function renderSummaryCards(data) {
   const persons = new Set(data.map((d) => d.person));
-  const totalRecords = data.reduce((sum, d) => sum + (Number(d.count) || 0), 0);
+  const totalRecords = getSummaryRecordTotal();
   const totalHours = data.reduce((s, d) => s + (d.productionHours || 0), 0);
 
   // ??撟喳???嚗誑 count ?箸???
