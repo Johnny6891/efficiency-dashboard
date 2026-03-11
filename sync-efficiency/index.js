@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const { google } = require('googleapis');
 const admin = require('firebase-admin');
 
@@ -15,6 +15,8 @@ const DEFAULTS = {
   colDate: 50,
   colProductionHours: 53,
   colBf: 57,
+  syncScope: 'all_years',
+  syncTimeZone: 'Asia/Taipei',
   port: 8080,
 };
 
@@ -41,6 +43,24 @@ function parseJsonEnv(name, required = true) {
   }
 }
 
+function normalizeSyncScope(raw) {
+  const value = String(raw || DEFAULTS.syncScope).trim().toLowerCase();
+  if (value === 'all_years' || value === 'current_year') return value;
+  throw new Error("SYNC_SCOPE must be 'all_years' or 'current_year'.");
+}
+
+function getCurrentYearInTimeZone(timeZone) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+  }).formatToParts(new Date());
+  const yearPart = parts.find((part) => part.type === 'year');
+  const year = Number(yearPart && yearPart.value);
+  if (!Number.isInteger(year)) {
+    throw new Error(`Unable to determine current year for timezone: ${timeZone}`);
+  }
+  return year;
+}
 function loadConfig() {
   const dataSheets = parseJsonEnv('DATA_SHEETS_JSON');
   if (!Array.isArray(dataSheets) || dataSheets.length === 0) {
@@ -69,6 +89,8 @@ function loadConfig() {
     colDate: parseInteger('COL_DATE', DEFAULTS.colDate),
     colProductionHours: parseInteger('COL_PRODUCTION_HOURS', DEFAULTS.colProductionHours),
     colBf: parseInteger('COL_BF', DEFAULTS.colBf),
+    syncScope: normalizeSyncScope(process.env.SYNC_SCOPE),
+    syncYear: parseInteger('SYNC_YEAR', getCurrentYearInTimeZone(DEFAULTS.syncTimeZone)),
     syncToken: process.env.SYNC_TOKEN || '',
     port: parseInteger('PORT', DEFAULTS.port),
   };
@@ -194,6 +216,10 @@ function calculateStats(rows, validPersons, config) {
     const date = parseSheetDate(dateRaw);
     if (!date || Number.isNaN(date.getTime())) continue;
 
+    if (config.syncScope === 'current_year' && date.getFullYear() !== config.syncYear) {
+      continue;
+    }
+
     const yearMonth = `${date.getFullYear()}/${date.getMonth() + 1}`;
     const productionHours = toNumber(row[config.colProductionHours]);
 
@@ -308,6 +334,8 @@ async function runSync() {
     coveredMonths: Array.from(coveredMonths),
     sourceRows,
     deletedCount,
+    syncScope: config.syncScope,
+    syncYear: config.syncScope === 'current_year' ? config.syncYear : null,
     durationMs: Date.now() - startedAt.getTime(),
   });
 
@@ -321,6 +349,8 @@ async function runSync() {
     coveredMonths: Array.from(coveredMonths),
     deletedCount,
     writtenCount,
+    syncScope: config.syncScope,
+    syncYear: config.syncScope === 'current_year' ? config.syncYear : null,
   };
 }
 
@@ -373,3 +403,4 @@ if (require.main === module) {
 }
 
 module.exports = { app, runSync };
+

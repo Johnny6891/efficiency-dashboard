@@ -1,4 +1,4 @@
-﻿# sync-efficiency（Cloud Run）
+# sync-efficiency（Cloud Run）
 
 此服務用於取代長時間執行的 GAS，同步 Google Sheets 統計資料到 Firestore。
 
@@ -29,6 +29,11 @@ npm install
 - `REF_SHEET_ID`
 - `DATA_SHEETS_JSON`（JSON 陣列）
 
+可選環境變數（同步範圍控制）：
+
+- `SYNC_SCOPE`：`all_years`（預設）或 `current_year`
+- `SYNC_YEAR`：僅在 `SYNC_SCOPE=current_year` 時生效；未提供時自動使用台北時區今年
+
 ## 3）本機基本測試
 
 ```powershell
@@ -58,7 +63,7 @@ gcloud run deploy sync-efficiency `
 
 ```powershell
 gcloud scheduler jobs create http sync-efficiency-daily `
-  --schedule "0 1 * * *" `
+  --schedule "0 7 * * *" `
   --time-zone "Asia/Taipei" `
   --uri "https://<YOUR_CLOUD_RUN_URL>/sync-efficiency" `
   --http-method POST `
@@ -79,9 +84,17 @@ gcloud scheduler jobs create http sync-efficiency-daily `
   - `sourceRows`
   - `deletedCount`
   - `durationMs`
+  - `syncScope`
+  - `syncYear`（僅 `current_year` 模式有值）
 
 ## 常見問題排查
 
 - `Cannot find column "..."`：請改用欄位索引環境變數 `REF_GROUP_COL`、`REF_STATUS_COL`、`REF_NAME_COL`。
 - `Unauthorized`：Bearer Token 未帶入或不正確。
 - 500 且顯示 JSON parse error：憑證環境變數不是合法 JSON 字串。
+
+## 安全性注意（重要）
+
+- 不要將任何服務帳號金鑰（JSON、PEM、P12）提交到 Git。
+- 建議只透過 Cloud Run / GitHub Secrets / Secret Manager 注入 `GOOGLE_CREDENTIALS`、`FIREBASE_CREDENTIALS`。
+- 若金鑰曾出現在專案資料夾（即使尚未 push），仍建議立即輪替該金鑰並停用舊金鑰。
