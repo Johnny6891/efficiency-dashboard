@@ -549,7 +549,7 @@ function renderComparisonChart(data) {
           borderColor: '#9bb8c9',
           borderWidth: 1.5,
           borderRadius: 4,
-          order: 2,
+          order: 1,
         },
         {
           type: 'line',
@@ -562,7 +562,7 @@ function renderComparisonChart(data) {
           pointHoverRadius: 0,
           tension: 0,
           fill: false,
-          order: 1,
+          order: 2,
           datalabels: { display: false },
         },
       ],
@@ -579,12 +579,22 @@ function renderComparisonChart(data) {
             boxHeight: 12,
             usePointStyle: false,
             padding: 16,
+            sort: (a, b) => {
+              const rank = {
+                '個人成績(效率90%以上)': 1,
+                '達成目標(達成率90%以上)': 2,
+              };
+              return (rank[a.text] || 99) - (rank[b.text] || 99);
+            },
           },
         },
         datalabels: {
           display: (context) => context.dataset.type !== 'line',
           anchor: 'end',
-          align: 'top',
+          align: (context) => (Number(context.raw) >= 95 ? 'start' : 'top'),
+          offset: (context) => (Number(context.raw) >= 95 ? 2 : 4),
+          clamp: true,
+          clip: true,
           formatter: (v) => `${v}%`,
           font: { weight: '600', size: 11 },
           color: '#4a3f35',
