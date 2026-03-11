@@ -535,25 +535,54 @@ function renderComparisonChart(data) {
 
   const labels = entries.map((e) => e.name);
   const values = entries.map((e) => e.eff);
+  const targetLineValues = labels.map(() => 90);
 
   state.charts.comparison = new Chart(ctx, {
     type: 'bar',
     data: {
       labels,
-      datasets: [{
-        label: '效率 (%)',
-        data: values,
-        backgroundColor: 'rgba(155,184,201,0.65)',
-        borderColor: '#9bb8c9',
-        borderWidth: 1.5,
-        borderRadius: 4,
-      }],
+      datasets: [
+        {
+          label: '個人成績(效率90%以上)',
+          data: values,
+          backgroundColor: 'rgba(155,184,201,0.65)',
+          borderColor: '#9bb8c9',
+          borderWidth: 1.5,
+          borderRadius: 4,
+          order: 2,
+        },
+        {
+          type: 'line',
+          label: '達成目標(達成率90%以上)',
+          data: targetLineValues,
+          borderColor: '#e74c3c',
+          backgroundColor: '#e74c3c',
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHoverRadius: 0,
+          tension: 0,
+          fill: false,
+          order: 1,
+          datalabels: { display: false },
+        },
+      ],
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
+        legend: {
+          display: true,
+          position: 'top',
+          labels: {
+            boxWidth: 12,
+            boxHeight: 12,
+            usePointStyle: false,
+            padding: 16,
+          },
+        },
         datalabels: {
+          display: (context) => context.dataset.type !== 'line',
           anchor: 'end',
           align: 'top',
           formatter: (v) => `${v}%`,
@@ -596,3 +625,4 @@ function showError(message) {
       el.style.display = 'none';
     });
 }
+
