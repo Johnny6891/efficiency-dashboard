@@ -1,0 +1,87 @@
+﻿2026-03-10T02:22:49.4622549Z ##[group]Run node -e "const *** runSync *** = require('./index'); runSync().then(r => *** console.log(JSON.stringify(r, null, 2)); process.exit(0); ***).catch(e => *** console.error(e); process.exit(1); ***);"
+2026-03-10T02:22:49.4624144Z [36;1mnode -e "const *** runSync *** = require('./index'); runSync().then(r => *** console.log(JSON.stringify(r, null, 2)); process.exit(0); ***).catch(e => *** console.error(e); process.exit(1); ***);"[0m
+2026-03-10T02:22:49.4673998Z shell: /usr/bin/bash -e ***0***
+2026-03-10T02:22:49.4674442Z env:
+2026-03-10T02:22:49.4684171Z   GOOGLE_CREDENTIALS: ***
+
+2026-03-10T02:22:49.4694019Z   FIREBASE_CREDENTIALS: ***
+
+2026-03-10T02:22:49.4694516Z   REF_SHEET_ID: ***
+2026-03-10T02:22:49.4694863Z   REF_SHEET_NAME: 勿修改/全部同事DATA
+2026-03-10T02:22:49.4695227Z   REF_GROUP_HEADER: 組別
+2026-03-10T02:22:49.4695583Z   REF_STATUS_HEADER: 狀態(1表示顯示0不顯示)
+2026-03-10T02:22:49.4695971Z   REF_NAME_HEADER: 人員名稱
+2026-03-10T02:22:49.4696334Z   INCLUDE_GROUP: 2
+2026-03-10T02:22:49.4696678Z   INCLUDE_STATUS: 1
+2026-03-10T02:22:49.4697948Z   DATA_SHEETS_JSON: ***
+
+2026-03-10T02:22:49.4698329Z   FIRESTORE_COLLECTION: efficiency_stats
+2026-03-10T02:22:49.4698723Z   COL_COLLEAGUE: 43
+2026-03-10T02:22:49.4699046Z   COL_DATE: 50
+2026-03-10T02:22:49.4699395Z   COL_PRODUCTION_HOURS: 53
+2026-03-10T02:22:49.4699749Z   COL_BF: 57
+2026-03-10T02:22:49.4700061Z ##[endgroup]
+2026-03-10T02:23:07.5399629Z Error: 7 PERMISSION_DENIED: Cloud Firestore API has not been used in project bionic-union-456401-c6 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/firestore.googleapis.com/overview?project=bionic-union-456401-c6 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.
+2026-03-10T02:23:07.5404062Z     at callErrorFromStatus (/home/runner/work/efficiency-dashboard/efficiency-dashboard/sync-efficiency/node_modules/@grpc/grpc-js/build/src/call.js:32:19)
+2026-03-10T02:23:07.5406335Z     at Object.onReceiveStatus (/home/runner/work/efficiency-dashboard/efficiency-dashboard/sync-efficiency/node_modules/@grpc/grpc-js/build/src/client.js:359:73)
+2026-03-10T02:23:07.5408823Z     at Object.onReceiveStatus (/home/runner/work/efficiency-dashboard/efficiency-dashboard/sync-efficiency/node_modules/@grpc/grpc-js/build/src/client-interceptors.js:327:181)
+2026-03-10T02:23:07.5411109Z     at /home/runner/work/efficiency-dashboard/efficiency-dashboard/sync-efficiency/node_modules/@grpc/grpc-js/build/src/resolving-call.js:135:78
+2026-03-10T02:23:07.5412148Z     at process.processTicksAndRejections (node:internal/process/task_queues:77:11)
+2026-03-10T02:23:07.5412668Z for call at
+2026-03-10T02:23:07.5413668Z     at ServiceClientImpl.makeServerStreamRequest (/home/runner/work/efficiency-dashboard/efficiency-dashboard/sync-efficiency/node_modules/@grpc/grpc-js/build/src/client.js:342:32)
+2026-03-10T02:23:07.5415183Z     at ServiceClientImpl.<anonymous> (/home/runner/work/efficiency-dashboard/efficiency-dashboard/sync-efficiency/node_modules/@grpc/grpc-js/build/src/make-client.js:105:19)
+2026-03-10T02:23:07.5416967Z     at /home/runner/work/efficiency-dashboard/efficiency-dashboard/sync-efficiency/node_modules/@google-cloud/firestore/build/src/v1/firestore_client.js:242:33
+2026-03-10T02:23:07.5418294Z     at /home/runner/work/efficiency-dashboard/efficiency-dashboard/sync-efficiency/node_modules/google-gax/build/src/streamingCalls/streamingApiCaller.js:38:28
+2026-03-10T02:23:07.5419567Z     at /home/runner/work/efficiency-dashboard/efficiency-dashboard/sync-efficiency/node_modules/google-gax/build/src/normalCalls/timeout.js:44:16
+2026-03-10T02:23:07.5421215Z     at Object.request (/home/runner/work/efficiency-dashboard/efficiency-dashboard/sync-efficiency/node_modules/google-gax/build/src/streamingCalls/streaming.js:234:40)
+2026-03-10T02:23:07.5422578Z     at makeRequest (/home/runner/work/efficiency-dashboard/efficiency-dashboard/sync-efficiency/node_modules/retry-request/index.js:159:28)
+2026-03-10T02:23:07.5423755Z     at retryRequest (/home/runner/work/efficiency-dashboard/efficiency-dashboard/sync-efficiency/node_modules/retry-request/index.js:119:5)
+2026-03-10T02:23:07.5425335Z     at StreamProxy.setStream (/home/runner/work/efficiency-dashboard/efficiency-dashboard/sync-efficiency/node_modules/google-gax/build/src/streamingCalls/streaming.js:225:37)
+2026-03-10T02:23:07.5426852Z     at StreamingApiCaller.call (/home/runner/work/efficiency-dashboard/efficiency-dashboard/sync-efficiency/node_modules/google-gax/build/src/streamingCalls/streamingApiCaller.js:54:16)
+2026-03-10T02:23:07.5427826Z Caused by: Error
+2026-03-10T02:23:07.5428760Z     at QueryUtil._getResponse (/home/runner/work/efficiency-dashboard/efficiency-dashboard/sync-efficiency/node_modules/@google-cloud/firestore/build/src/reference/query-util.js:44:23)
+2026-03-10T02:23:07.5430317Z     at CollectionReference._getResponse (/home/runner/work/efficiency-dashboard/efficiency-dashboard/sync-efficiency/node_modules/@google-cloud/firestore/build/src/reference/query.js:784:32)
+2026-03-10T02:23:07.5432131Z     at CollectionReference._get (/home/runner/work/efficiency-dashboard/efficiency-dashboard/sync-efficiency/node_modules/@google-cloud/firestore/build/src/reference/query.js:777:35)
+2026-03-10T02:23:07.5433499Z     at /home/runner/work/efficiency-dashboard/efficiency-dashboard/sync-efficiency/node_modules/@google-cloud/firestore/build/src/reference/query.js:745:43
+2026-03-10T02:23:07.5434866Z     at /home/runner/work/efficiency-dashboard/efficiency-dashboard/sync-efficiency/node_modules/@google-cloud/firestore/build/src/telemetry/enabled-trace-util.js:110:30
+2026-03-10T02:23:07.5436350Z     at NoopContextManager.with (/home/runner/work/efficiency-dashboard/efficiency-dashboard/sync-efficiency/node_modules/@opentelemetry/api/build/src/context/NoopContextManager.js:25:19)
+2026-03-10T02:23:07.5437811Z     at ContextAPI.with (/home/runner/work/efficiency-dashboard/efficiency-dashboard/sync-efficiency/node_modules/@opentelemetry/api/build/src/api/context.js:60:46)
+2026-03-10T02:23:07.5439314Z     at NoopTracer.startActiveSpan (/home/runner/work/efficiency-dashboard/efficiency-dashboard/sync-efficiency/node_modules/@opentelemetry/api/build/src/trace/NoopTracer.js:65:31)
+2026-03-10T02:23:07.5441166Z     at ProxyTracer.startActiveSpan (/home/runner/work/efficiency-dashboard/efficiency-dashboard/sync-efficiency/node_modules/@opentelemetry/api/build/src/trace/ProxyTracer.js:36:24)
+2026-03-10T02:23:07.5443299Z     at EnabledTraceUtil.startActiveSpan (/home/runner/work/efficiency-dashboard/efficiency-dashboard/sync-efficiency/node_modules/@google-cloud/firestore/build/src/telemetry/enabled-trace-util.js:102:28) ***
+2026-03-10T02:23:07.5444279Z   code: 7,
+2026-03-10T02:23:07.5446110Z   details: 'Cloud Firestore API has not been used in project bionic-union-456401-c6 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/firestore.googleapis.com/overview?project=bionic-union-456401-c6 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.',
+2026-03-10T02:23:07.5447905Z   metadata: Metadata ***
+2026-03-10T02:23:07.5448265Z     internalRepr: Map(5) ***
+2026-03-10T02:23:07.5448679Z       'google.rpc.errorinfo-bin' => [Array],
+2026-03-10T02:23:07.5449118Z       'google.rpc.help-bin' => [Array],
+2026-03-10T02:23:07.5449578Z       'google.rpc.localizedmessage-bin' => [Array],
+2026-03-10T02:23:07.5450041Z       'grpc-status-details-bin' => [Array],
+2026-03-10T02:23:07.5450469Z       'x-debug-tracking-id' => [Array]
+2026-03-10T02:23:07.5451105Z     ***,
+2026-03-10T02:23:07.5451575Z     opaqueData: Map(0) ***,
+2026-03-10T02:23:07.5451926Z     options: ***
+2026-03-10T02:23:07.5452215Z   ***,
+2026-03-10T02:23:07.5452492Z   statusDetails: [
+2026-03-10T02:23:07.5453221Z     ErrorInfo ***
+2026-03-10T02:23:07.5453576Z       metadata: [Object],
+2026-03-10T02:23:07.5453953Z       reason: 'SERVICE_DISABLED',
+2026-03-10T02:23:07.5454337Z       domain: 'googleapis.com'
+2026-03-10T02:23:07.5454692Z     ***,
+2026-03-10T02:23:07.5455182Z     LocalizedMessage ***
+2026-03-10T02:23:07.5455506Z       locale: 'en-US',
+2026-03-10T02:23:07.5457324Z       message: 'Cloud Firestore API has not been used in project bionic-union-456401-c6 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/firestore.googleapis.com/overview?project=bionic-union-456401-c6 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.'
+2026-03-10T02:23:07.5458828Z     ***,
+2026-03-10T02:23:07.5459144Z     Help *** links: [Array] ***
+2026-03-10T02:23:07.5459464Z   ],
+2026-03-10T02:23:07.5459751Z   reason: 'SERVICE_DISABLED',
+2026-03-10T02:23:07.5460096Z   domain: 'googleapis.com',
+2026-03-10T02:23:07.5460441Z   errorInfoMetadata: ***
+2026-03-10T02:23:07.5461152Z     consumer: 'projects/bionic-union-456401-c6',
+2026-03-10T02:23:07.5461622Z     serviceTitle: 'Cloud Firestore API',
+2026-03-10T02:23:07.5462055Z     containerInfo: 'bionic-union-456401-c6',
+2026-03-10T02:23:07.5462931Z     activationUrl: 'https://console.developers.google.com/apis/api/firestore.googleapis.com/overview?project=bionic-union-456401-c6',
+2026-03-10T02:23:07.5463705Z     service: 'firestore.googleapis.com'
+2026-03-10T02:23:07.5464077Z   ***
+2026-03-10T02:23:07.5464351Z ***
+2026-03-10T02:23:07.5605810Z ##[error]Process completed with exit code 1.

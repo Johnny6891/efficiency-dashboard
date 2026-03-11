@@ -1,0 +1,18 @@
+﻿# Security baseline ignore rules
+.env
+.env.*
+!.env.example
+secrets/
+
+# Common credential file patterns
+*-firebase-adminsdk-*.json
+*service-account*.json
+*credentials*.json
+*credential*.json
+
+# Private keys / certs
+*.pem
+*.p12
+*.pfx
+id_rsa
+id_dsa

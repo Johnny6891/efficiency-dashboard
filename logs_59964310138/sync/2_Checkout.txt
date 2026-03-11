@@ -1,0 +1,72 @@
+﻿2026-03-10T02:22:44.0198463Z ##[group]Run actions/checkout@v4
+2026-03-10T02:22:44.0199852Z with:
+2026-03-10T02:22:44.0200999Z   repository: Johnny6891/efficiency-dashboard
+2026-03-10T02:22:44.0202269Z   token: ***
+2026-03-10T02:22:44.0203118Z   ssh-strict: true
+2026-03-10T02:22:44.0203986Z   ssh-user: git
+2026-03-10T02:22:44.0204856Z   persist-credentials: true
+2026-03-10T02:22:44.0205771Z   clean: true
+2026-03-10T02:22:44.0206636Z   sparse-checkout-cone-mode: true
+2026-03-10T02:22:44.0207588Z   fetch-depth: 1
+2026-03-10T02:22:44.0208475Z   fetch-tags: false
+2026-03-10T02:22:44.0209340Z   show-progress: true
+2026-03-10T02:22:44.0210215Z   lfs: false
+2026-03-10T02:22:44.0211261Z   submodules: false
+2026-03-10T02:22:44.0212171Z   set-safe-directory: true
+2026-03-10T02:22:44.0213373Z ##[endgroup]
+2026-03-10T02:22:44.1374584Z Syncing repository: Johnny6891/efficiency-dashboard
+2026-03-10T02:22:44.1377236Z ##[group]Getting Git version info
+2026-03-10T02:22:44.1378789Z Working directory is '/home/runner/work/efficiency-dashboard/efficiency-dashboard'
+2026-03-10T02:22:44.1381118Z [command]/usr/bin/git version
+2026-03-10T02:22:44.1450108Z git version 2.53.0
+2026-03-10T02:22:44.1478010Z ##[endgroup]
+2026-03-10T02:22:44.1493851Z Temporarily overriding HOME='/home/runner/work/_temp/e8dc4856-5604-428f-97cb-2a1a400df524' before making global git config changes
+2026-03-10T02:22:44.1495719Z Adding repository directory to the temporary git global config as a safe directory
+2026-03-10T02:22:44.1508531Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/efficiency-dashboard/efficiency-dashboard
+2026-03-10T02:22:44.1555052Z Deleting the contents of '/home/runner/work/efficiency-dashboard/efficiency-dashboard'
+2026-03-10T02:22:44.1559121Z ##[group]Initializing the repository
+2026-03-10T02:22:44.1563855Z [command]/usr/bin/git init /home/runner/work/efficiency-dashboard/efficiency-dashboard
+2026-03-10T02:22:44.1674061Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-03-10T02:22:44.1676694Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-03-10T02:22:44.1678886Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-03-10T02:22:44.1680443Z hint: call:
+2026-03-10T02:22:44.1681610Z hint:
+2026-03-10T02:22:44.1682574Z hint: 	git config --global init.defaultBranch <name>
+2026-03-10T02:22:44.1684181Z hint:
+2026-03-10T02:22:44.1685245Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-03-10T02:22:44.1686595Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-03-10T02:22:44.1687756Z hint:
+2026-03-10T02:22:44.1688624Z hint: 	git branch -m <name>
+2026-03-10T02:22:44.1690048Z hint:
+2026-03-10T02:22:44.1691303Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-03-10T02:22:44.1692898Z Initialized empty Git repository in /home/runner/work/efficiency-dashboard/efficiency-dashboard/.git/
+2026-03-10T02:22:44.1695850Z [command]/usr/bin/git remote add origin https://github.com/Johnny6891/efficiency-dashboard
+2026-03-10T02:22:44.1729544Z ##[endgroup]
+2026-03-10T02:22:44.1731353Z ##[group]Disabling automatic garbage collection
+2026-03-10T02:22:44.1733257Z [command]/usr/bin/git config --local gc.auto 0
+2026-03-10T02:22:44.1772511Z ##[endgroup]
+2026-03-10T02:22:44.1773968Z ##[group]Setting up auth
+2026-03-10T02:22:44.1775120Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-03-10T02:22:44.1806499Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-03-10T02:22:44.2146991Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-03-10T02:22:44.2182068Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-03-10T02:22:44.2436486Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-03-10T02:22:44.2471162Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-03-10T02:22:44.2728203Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-03-10T02:22:44.2768156Z ##[endgroup]
+2026-03-10T02:22:44.2770989Z ##[group]Fetching the repository
+2026-03-10T02:22:44.2778139Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +ec79aef6254491906330f7494059f9f822a0f992:refs/remotes/origin/main
+2026-03-10T02:22:44.5029887Z From https://github.com/Johnny6891/efficiency-dashboard
+2026-03-10T02:22:44.5032876Z  * [new ref]         ec79aef6254491906330f7494059f9f822a0f992 -> origin/main
+2026-03-10T02:22:44.5066705Z ##[endgroup]
+2026-03-10T02:22:44.5068091Z ##[group]Determining the checkout info
+2026-03-10T02:22:44.5069721Z ##[endgroup]
+2026-03-10T02:22:44.5074027Z [command]/usr/bin/git sparse-checkout disable
+2026-03-10T02:22:44.5117600Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-03-10T02:22:44.5145462Z ##[group]Checking out the ref
+2026-03-10T02:22:44.5149349Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-03-10T02:22:44.5210120Z Switched to a new branch 'main'
+2026-03-10T02:22:44.5213536Z branch 'main' set up to track 'origin/main'.
+2026-03-10T02:22:44.5222165Z ##[endgroup]
+2026-03-10T02:22:44.5259420Z [command]/usr/bin/git log -1 --format=%H
+2026-03-10T02:22:44.5283788Z ec79aef6254491906330f7494059f9f822a0f992
