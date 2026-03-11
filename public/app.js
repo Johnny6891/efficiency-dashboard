@@ -1,21 +1,10 @@
-﻿/* ???????????????????????????????????????????????????????????
-   ?漱?????舀０????萄豰?- Application Logic
-   ???????????????????????????????????????????????????????????*/
+﻿'use strict';
 
-// ???? Firebase Configuration ????
-// ?蹎? ?ｇ???銋???Firebase Web App ?桀??
-// ??Firebase Console ??????桀?? ????????遴????伍???? ??Firebase SDK snippet
-const FIREBASE_CONFIG = {
-  apiKey: 'YOUR_FIREBASE_WEB_API_KEY', // ???ｇ?謆??
-  authDomain: 'work-report-system-26c12.firebaseapp.com',
-  projectId: 'work-report-system-26c12',
-};
+const FIRESTORE_PROJECT_ID = 'work-report-system-26c12';
+const FIRESTORE_COLLECTION = 'efficiency_stats';
+const FIRESTORE_ENDPOINT_BASE =
+  `https://firestore.googleapis.com/v1/projects/${FIRESTORE_PROJECT_ID}/databases/(default)/documents/${FIRESTORE_COLLECTION}`;
 
-// App Check ??reCAPTCHA Enterprise Site Key
-// ?? Firebase Console ??App Check 閮餃?敺?敺?site key
-const RECAPTCHA_SITE_KEY = 'YOUR_RECAPTCHA_ENTERPRISE_SITE_KEY'; // TODO: ?踵?
-
-// ???? App State ????
 const state = {
   rawData: [],
   filteredData: [],
@@ -27,30 +16,95 @@ const state = {
   charts: { trend: null, comparison: null },
 };
 
-// ???????????????????????????????????????????????????????????
-// Initialization
-// ???????????????????????????????????????????????????????????
-// ?桅?? datalabels ??麾
-Chart.register(ChartDataLabels);
+if (window.Chart && window.ChartDataLabels) {
+  window.Chart.register(window.ChartDataLabels);
+}
 
-async function fetchDataWithRetry(db, maxRetries = 3) {
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      const [snapshot, metaDoc] = await Promise.all([
-        db.collection('efficiency_stats').get(),
-        db.collection('efficiency_stats').doc('_metadata').get().catch(() => null),
-      ]);
-      return { snapshot, metaDoc };
-    } catch (err) {
-      if (attempt === maxRetries) throw err;
-      const delay = Math.pow(2, attempt) * 500;
-      console.warn(
-        `Firestore ???憭望? (蝚?${attempt + 1} 甈?嚗?{delay}ms 敺?閰?..`,
-        err,
-      );
-      await new Promise((r) => setTimeout(r, delay));
+document.addEventListener('DOMContentLoaded', init);
+
+async function init() {
+  try {
+    const docs = await fetchAllEfficiencyDocs();
+
+    const meta = docs.find((d) => d.id === '_metadata') || null;
+    state.rawData = docs.filter((d) => d.id !== '_metadata');
+
+    renderLastUpdated(meta);
+    renderLatestDataDate();
+    populateFilters();
+    setupEventListeners();
+    applyFiltersAndRender();
+
+    document.getElementById('loadingOverlay').classList.add('hidden');
+  } catch (err) {
+    console.error('載入資料失敗', err);
+    showError(err && err.message ? err.message : '無法載入資料');
+  }
+}
+
+async function fetchAllEfficiencyDocs() {
+  const docs = [];
+  let pageToken = '';
+
+  while (true) {
+    const url = new URL(FIRESTORE_ENDPOINT_BASE);
+    url.searchParams.set('pageSize', '500');
+    if (pageToken) {
+      url.searchParams.set('pageToken', pageToken);
+    }
+
+    const res = await fetch(url.toString(), { method: 'GET' });
+    if (!res.ok) {
+      throw new Error(`讀取 Firestore 失敗 (${res.status})`);
+    }
+
+    const json = await res.json();
+    const pageDocs = (json.documents || []).map(decodeFirestoreDoc);
+    docs.push(...pageDocs);
+
+    pageToken = json.nextPageToken || '';
+    if (!pageToken) {
+      break;
     }
   }
+
+  return docs;
+}
+
+function decodeFirestoreDoc(doc) {
+  const out = { id: String(doc.name || '').split('/').pop() || '' };
+  const fields = doc.fields || {};
+
+  Object.keys(fields).forEach((key) => {
+    out[key] = decodeFirestoreValue(fields[key]);
+  });
+
+  return out;
+}
+
+function decodeFirestoreValue(v) {
+  if (!v || typeof v !== 'object') return null;
+  if (Object.prototype.hasOwnProperty.call(v, 'stringValue')) return v.stringValue;
+  if (Object.prototype.hasOwnProperty.call(v, 'integerValue')) return Number(v.integerValue);
+  if (Object.prototype.hasOwnProperty.call(v, 'doubleValue')) return Number(v.doubleValue);
+  if (Object.prototype.hasOwnProperty.call(v, 'booleanValue')) return Boolean(v.booleanValue);
+  if (Object.prototype.hasOwnProperty.call(v, 'timestampValue')) return v.timestampValue;
+  if (Object.prototype.hasOwnProperty.call(v, 'nullValue')) return null;
+
+  if (Object.prototype.hasOwnProperty.call(v, 'arrayValue')) {
+    return (v.arrayValue.values || []).map(decodeFirestoreValue);
+  }
+
+  if (Object.prototype.hasOwnProperty.call(v, 'mapValue')) {
+    const mapFields = v.mapValue.fields || {};
+    const obj = {};
+    Object.keys(mapFields).forEach((key) => {
+      obj[key] = decodeFirestoreValue(mapFields[key]);
+    });
+    return obj;
+  }
+
+  return null;
 }
 
 function toNumber(value) {
@@ -83,84 +137,49 @@ function getLatestYearMonth() {
     .sort((a, b) => b.key - a.key)[0];
 
   if (!latest) return null;
-  return String(latest.year) + '/' + String(latest.month).padStart(2, '0');
+  return `${latest.year}/${String(latest.month).padStart(2, '0')}`;
 }
 
 function renderLatestDataDate() {
-  const latestDataDateEl = document.getElementById('latestDataDate');
-  if (!latestDataDateEl) return;
+  const el = document.getElementById('latestDataDate');
+  if (!el) return;
 
-  const latestYearMonth = getLatestYearMonth();
-  latestDataDateEl.textContent = latestYearMonth
-    ? '\u8cc7\u6599\u6700\u65b0\u5e74\u6708\uff1a' + latestYearMonth
-    : '\u8cc7\u6599\u6700\u65b0\u5e74\u6708\uff1a--';
+  const latest = getLatestYearMonth();
+  el.textContent = latest ? `資料最新年月：${latest}` : '資料最新年月：--';
 }
 
-document.addEventListener('DOMContentLoaded', init);
+function renderLastUpdated(meta) {
+  const el = document.getElementById('lastUpdated');
+  if (!el) return;
 
-async function init() {
-  try {
-    firebase.initializeApp(FIREBASE_CONFIG);
-
-    // App Check ?脩??
-    const appCheck = firebase.appCheck();
-    appCheck.activate(
-      new firebase.appCheck.ReCaptchaEnterpriseProvider(RECAPTCHA_SITE_KEY),
-      true,
-    );
-
-    const db = firebase.firestore();
-
-    // ?????航璇?????metadata
-    const { snapshot, metaDoc } = await fetchDataWithRetry(db);
-
-    // ??????????_metadata ??刻麾??
-    state.rawData = [];
-    snapshot.forEach((doc) => {
-      if (doc.id === '_metadata') return;
-      state.rawData.push({ id: doc.id, ...doc.data() });
-    });
-
-    // ?輯?????綽??漱???
-    if (metaDoc && metaDoc.exists) {
-      const meta = metaDoc.data();
-      const syncTime = meta.lastSyncTime
-        ? new Date(meta.lastSyncTime).toLocaleString('zh-TW')
-        : '??堊?';
-      document.getElementById('lastUpdated').textContent =
-        '???綽??? ' + syncTime;
-    } else {
-      document.getElementById('lastUpdated').textContent = '????';
-    }
-
-    // ?豲???UI
-    renderLatestDataDate();
-
-    populateFilters();
-    setupEventListeners();
-    applyFiltersAndRender();
-
-    // ?璇? loading
-    document.getElementById('loadingOverlay').classList.add('hidden');
-  } catch (err) {
-    console.error('?豲??謘潔???', err);
-    showError(err.message);
+  const ts = meta && meta.lastSyncTime ? String(meta.lastSyncTime) : '';
+  if (!ts) {
+    el.textContent = '最後同步：--';
+    return;
   }
+
+  const date = new Date(ts);
+  if (Number.isNaN(date.getTime())) {
+    el.textContent = `最後同步：${ts}`;
+    return;
+  }
+
+  el.textContent = `最後同步: ${date.toLocaleString('zh-TW')}`;
 }
 
-// ???????????????????????????????????????????????????????????
-// Filters
-// ???????????????????????????????????????????????????????????
 function populateFilters() {
-  const months = [...new Set(state.rawData.map((d) => d.yearMonth))];
-  const persons = [...new Set(state.rawData.map((d) => d.person))];
+  const months = [...new Set(state.rawData.map((d) => String(d.yearMonth || '')).filter(Boolean))];
+  const persons = [...new Set(state.rawData.map((d) => String(d.person || '')).filter(Boolean))];
 
   months.sort((a, b) => {
-    const [ay, am] = a.split('/').map(Number);
-    const [by, bm] = b.split('/').map(Number);
-    return by * 100 + bm - (ay * 100 + am);
+    const pa = parseYearMonth(a);
+    const pb = parseYearMonth(b);
+    const ka = pa ? pa.key : -1;
+    const kb = pb ? pb.key : -1;
+    return kb - ka;
   });
-  persons.sort();
+
+  persons.sort((a, b) => a.localeCompare(b, 'zh-TW'));
 
   const monthSelect = document.getElementById('filterMonth');
   monthSelect.innerHTML = '';
@@ -170,8 +189,9 @@ function populateFilters() {
     placeholder.value = '';
     placeholder.disabled = true;
     placeholder.selected = true;
-    placeholder.textContent = '?∟???;
+    placeholder.textContent = '無資料';
     monthSelect.appendChild(placeholder);
+    state.filterMonth = 'all';
   } else {
     months.forEach((m) => {
       const opt = document.createElement('option');
@@ -179,103 +199,67 @@ function populateFilters() {
       opt.textContent = m;
       monthSelect.appendChild(opt);
     });
-    monthSelect.value = months[0];
     state.filterMonth = months[0];
+    monthSelect.value = months[0];
   }
 
   const personSelect = document.getElementById('filterPerson');
+  personSelect.innerHTML = '<option value="all">全部</option>';
   persons.forEach((p) => {
     const opt = document.createElement('option');
     opt.value = p;
     opt.textContent = p;
     personSelect.appendChild(opt);
   });
+  state.filterPerson = 'all';
 }
 
 function setupEventListeners() {
-  document
-    .getElementById('filterMonth')
-    .addEventListener('change', (e) => {
-      state.filterMonth = e.target.value;
-      applyFiltersAndRender();
-    });
+  document.getElementById('filterMonth').addEventListener('change', (e) => {
+    state.filterMonth = e.target.value;
+    applyFiltersAndRender();
+  });
 
-  document
-    .getElementById('filterPerson')
-    .addEventListener('change', (e) => {
-      state.filterPerson = e.target.value;
-      applyFiltersAndRender();
-    });
+  document.getElementById('filterPerson').addEventListener('change', (e) => {
+    state.filterPerson = e.target.value;
+    applyFiltersAndRender();
+  });
 
-  // ?謚????
   let searchTimer;
-  document
-    .getElementById('searchInput')
-    .addEventListener('input', (e) => {
-      clearTimeout(searchTimer);
-      searchTimer = setTimeout(() => {
-        state.searchText = e.target.value.trim().toLowerCase();
-        applyFiltersAndRender();
-      }, 200);
-    });
+  document.getElementById('searchInput').addEventListener('input', (e) => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      state.searchText = String(e.target.value || '').trim().toLowerCase();
+      applyFiltersAndRender();
+    }, 200);
+  });
 
-
-  // ?萄赯???
   document.querySelectorAll('th.sortable').forEach((th) => {
     th.addEventListener('click', () => {
       const col = th.dataset.col;
+      if (!col) return;
+
       if (state.sortCol === col) {
         state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
       } else {
         state.sortCol = col;
         state.sortDir = col === 'yearMonth' ? 'desc' : 'asc';
       }
+
       applyFiltersAndRender();
     });
   });
 }
 
-// ???????????????????????????????????????????????????????????
-// Filter + Sort + Render Pipeline
-// ???????????????????????????????????????????????????????????
 function applyFiltersAndRender() {
-  // ?剜?蹓?
-  let data = state.rawData.filter((d) => {
-    if (state.filterMonth !== 'all' && d.yearMonth !== state.filterMonth)
-      return false;
-    if (state.filterPerson !== 'all' && d.person !== state.filterPerson)
-      return false;
-    if (state.searchText && !d.person.toLowerCase().includes(state.searchText))
-      return false;
-    return true;
-  });
-
-  // ???
-  const col = state.sortCol;
-  const dir = state.sortDir === 'asc' ? 1 : -1;
-
-  data.sort((a, b) => {
-    let va = a[col];
-    let vb = b[col];
-
-    // ????撖????
-    if (col === 'yearMonth') {
-      const [ay, am] = String(va).split('/').map(Number);
-      const [by, bm] = String(vb).split('/').map(Number);
-      return ((ay * 100 + am) - (by * 100 + bm)) * dir;
-    }
-
-    // ?殉???vs ?閰?
-    if (typeof va === 'string') {
-      return va.localeCompare(vb, 'zh-TW') * dir;
-    }
-
-    // null/undefined ?????
-    if (va == null) return 1;
-    if (vb == null) return -1;
-
-    return (va - vb) * dir;
-  });
+  const data = state.rawData
+    .filter((d) => {
+      if (state.filterMonth !== 'all' && String(d.yearMonth) !== state.filterMonth) return false;
+      if (state.filterPerson !== 'all' && String(d.person) !== state.filterPerson) return false;
+      if (state.searchText && !String(d.person || '').toLowerCase().includes(state.searchText)) return false;
+      return true;
+    })
+    .sort(compareByStateSort);
 
   state.filteredData = data;
 
@@ -285,214 +269,195 @@ function applyFiltersAndRender() {
   updateSortIndicators();
 }
 
-// ???????????????????????????????????????????????????????????
-// Summary Cards
-// ???????????????????????????????????????????????????????????
+function compareByStateSort(a, b) {
+  const col = state.sortCol;
+  const dir = state.sortDir === 'asc' ? 1 : -1;
+
+  if (col === 'yearMonth') {
+    const ka = (parseYearMonth(a.yearMonth) || { key: -1 }).key;
+    const kb = (parseYearMonth(b.yearMonth) || { key: -1 }).key;
+    return (ka - kb) * dir;
+  }
+
+  if (col === 'person') {
+    return String(a.person || '').localeCompare(String(b.person || ''), 'zh-TW') * dir;
+  }
+
+  return (toNumber(a[col]) - toNumber(b[col])) * dir;
+}
+
 function getSummaryRecordTotal() {
   return state.rawData
     .filter((d) => {
-      if (state.filterMonth !== 'all' && d.yearMonth !== state.filterMonth) {
-        return false;
-      }
-      if (state.filterPerson !== 'all' && d.person !== state.filterPerson) {
-        return false;
-      }
+      if (state.filterMonth !== 'all' && String(d.yearMonth) !== state.filterMonth) return false;
+      if (state.filterPerson !== 'all' && String(d.person) !== state.filterPerson) return false;
       return true;
     })
     .reduce((sum, d) => sum + toNumber(d.count), 0);
 }
-function renderSummaryCards(data) {
-  const persons = new Set(data.map((d) => d.person));
-  const totalRecords = getSummaryRecordTotal();
-  const totalHours = data.reduce((s, d) => s + (d.productionHours || 0), 0);
 
-  // ?蹎????????隤?count ?蝞????
+function renderSummaryCards(data) {
+  const persons = new Set(data.map((d) => String(d.person || '')).filter(Boolean));
+  const totalRecords = getSummaryRecordTotal();
+  const totalHours = data.reduce((sum, d) => sum + toNumber(d.productionHours), 0);
+
   let weightedSum = 0;
   let weightTotal = 0;
   data.forEach((d) => {
+    const eff = toNumber(d.efficiency);
     const count = toNumber(d.count);
-    if (d.efficiency != null && count > 0) {
-      weightedSum += d.efficiency * count;
+    if (count > 0) {
+      weightedSum += eff * count;
       weightTotal += count;
     }
   });
-  const avgEfficiency =
-    weightTotal > 0 ? Math.round((weightedSum / weightTotal) * 100) : 0;
+
+  const avgEfficiency = weightTotal > 0 ? Math.round((weightedSum / weightTotal) * 100) : 0;
 
   animateValue('valPersons', persons.size);
   animateValue('valRecords', totalRecords);
-  document.getElementById('valEfficiency').textContent = avgEfficiency + '%';
+  document.getElementById('valEfficiency').textContent = `${avgEfficiency}%`;
   animateValue('valHours', Math.round(totalHours));
 }
 
 function animateValue(id, target) {
   const el = document.getElementById(id);
-  const current = parseInt(el.textContent) || 0;
-  if (current === target) {
-    el.textContent = target.toLocaleString();
+  if (!el) return;
+
+  const current = toNumber(String(el.textContent || '').replace(/,/g, ''));
+  if (Math.round(current) === Math.round(target)) {
+    el.textContent = Math.round(target).toLocaleString('zh-TW');
     return;
   }
 
-  const duration = 400;
+  const duration = 300;
   const start = performance.now();
 
   function tick(now) {
     const progress = Math.min((now - start) / duration, 1);
-    const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+    const eased = 1 - Math.pow(1 - progress, 3);
     const val = Math.round(current + (target - current) * eased);
-    el.textContent = val.toLocaleString();
+    el.textContent = val.toLocaleString('zh-TW');
     if (progress < 1) requestAnimationFrame(tick);
   }
+
   requestAnimationFrame(tick);
 }
 
-// ???????????????????????????????????????????????????????????
-// Data Table
-// ???????????????????????????????????????????????????????????
 function renderTable(data) {
   const tbody = document.getElementById('tableBody');
   const countEl = document.getElementById('recordCount');
 
-  countEl.textContent = `??${data.length} ?;
+  countEl.textContent = `共 ${data.length} 筆`;
 
   if (data.length === 0) {
     tbody.innerHTML = `
-    < tr >
-    <td colspan="6">
-      <div class="empty-state">
-        <div class="empty-icon">???/div>
-        <p>????????颲?????/p>
-      </div>
-    </td>
-      </tr > `;
+      <tr>
+        <td colspan="6">
+          <div class="empty-state">
+            <div class="empty-icon">📭</div>
+            <p>找不到符合條件的資料</p>
+          </div>
+        </td>
+      </tr>`;
     return;
   }
 
-  // ?輯撒??DocumentFragment ??????
-  const frag = document.createDocumentFragment();
+  const rows = data.map((d, i) => {
+    const eff = toNumber(d.efficiency);
+    const effPct = Math.max(0, Math.min(100, Math.round(eff * 100)));
+    const effLabel = `${effPct}%`;
+    const effClass = getEfficiencyClass(eff);
+    const lt09 = toNumber(d.lt09);
+    const hours = d.productionHours == null ? '-' : toNumber(d.productionHours).toFixed(1);
 
-  data.forEach((d, i) => {
-    const tr = document.createElement('tr');
-    tr.style.animationDelay = `${ Math.min(i * 0.02, 0.5) } s`;
-
-    const effClass = getEfficiencyClass(d.efficiency);
-    const effPct = d.efficiency != null ? Math.round(d.efficiency * 100) : 0;
-    const effLabel =
-      d.efficiency != null ? Math.round(d.efficiency * 100) + '%' : '-';
-
-    tr.innerHTML = `
-    < td > ${ escapeHtml(d.yearMonth) }</td >
-      <td><strong>${escapeHtml(d.person)}</strong></td>
-      <td class="num">${d.count}</td>
-      <td class="num">${d.lt09 > 0
-        ? '<span class="badge badge-danger">' + d.lt09 + '</span>'
-        : '<span class="badge">' + d.lt09 + '</span>'
-      }</td>
-      <td class="num">
-        <div class="efficiency-cell">
-          <div class="efficiency-bar">
-            <div class="efficiency-fill ${effClass}" style="width: ${effPct}%"></div>
+    return `
+      <tr style="animation-delay:${Math.min(i * 0.02, 0.5)}s">
+        <td>${escapeHtml(d.yearMonth)}</td>
+        <td><strong>${escapeHtml(d.person)}</strong></td>
+        <td class="num">${toNumber(d.count)}</td>
+        <td class="num">${lt09 > 0 ? `<span class="badge badge-danger">${lt09}</span>` : `<span class="badge">${lt09}</span>`}</td>
+        <td class="num">
+          <div class="efficiency-cell">
+            <div class="efficiency-bar">
+              <div class="efficiency-fill ${effClass}" style="width:${effPct}%"></div>
+            </div>
+            <span class="efficiency-label ${effClass}">${effLabel}</span>
           </div>
-          <span class="efficiency-label ${effClass}">${effLabel}</span>
-        </div>
-      </td>
-      <td class="num">${d.productionHours != null
-        ? d.productionHours.toFixed(1)
-        : '-'
-      }</td>`;
-
-    frag.appendChild(tr);
+        </td>
+        <td class="num">${hours}</td>
+      </tr>`;
   });
 
-  tbody.innerHTML = '';
-  tbody.appendChild(frag);
+  tbody.innerHTML = rows.join('');
 }
 
 function updateSortIndicators() {
   document.querySelectorAll('th.sortable').forEach((th) => {
     th.classList.remove('sorted-asc', 'sorted-desc');
     if (th.dataset.col === state.sortCol) {
-      th.classList.add(`sorted - ${ state.sortDir } `);
+      th.classList.add(`sorted-${state.sortDir}`);
     }
   });
 }
 
-// ???????????????????????????????????????????????????????????
-// Charts
-// ???????????????????????????????????????????????????????????
 function renderCharts(data) {
-  renderTrendChart(data);
+  if (!window.Chart) return;
+  renderTrendChart();
   renderComparisonChart(data);
 }
 
-function renderTrendChart(data) {
+function renderTrendChart() {
   const ctx = document.getElementById('trendChart');
-  if (state.charts.trend) state.charts.trend.destroy();
+  if (!ctx) return;
 
-  // ?謘????閰典??????filterMonth ?謘澆???????謘????????
-  let selectedYear;
-  if (state.filterMonth && state.filterMonth !== 'all') {
-    selectedYear = String(state.filterMonth).split('/')[0];
-  } else {
-    // ??rawData ?謘???????
-    const years = state.rawData
-      .map((d) => String(d.yearMonth).split('/')[0])
-      .filter(Boolean);
-    selectedYear = years.length > 0 ? Math.max(...years.map(Number)).toString() : null;
+  if (state.charts.trend) {
+    state.charts.trend.destroy();
   }
 
-  // ?綜竣?????謕???摨?皜舫????????????剔??∟???嗆╰貔??
-  const yearData = state.rawData.filter(
-    (d) => String(d.yearMonth).split('/')[0] === selectedYear
-  );
+  const selectedYear = getSelectedYear();
+  const monthMap = new Map();
 
-  // ????郭??株郭?????????
-  const monthMap = {};
-  yearData.forEach((d) => {
-    if (d.efficiency == null) return;
-    if (!monthMap[d.yearMonth]) {
-      monthMap[d.yearMonth] = { sum: 0, weightSum: 0 };
+  state.rawData.forEach((d) => {
+    const ym = parseYearMonth(d.yearMonth);
+    if (!ym || String(ym.year) !== selectedYear) return;
+
+    const count = toNumber(d.count);
+    const eff = toNumber(d.efficiency);
+    if (count <= 0) return;
+
+    const key = ym.month;
+    if (!monthMap.has(key)) {
+      monthMap.set(key, { weightedSum: 0, weightTotal: 0 });
     }
-    monthMap[d.yearMonth].sum += d.efficiency * d.count;
-    monthMap[d.yearMonth].weightSum += d.count;
+
+    const item = monthMap.get(key);
+    item.weightedSum += eff * count;
+    item.weightTotal += count;
   });
 
-  // ???????~12??
-  const months = Object.keys(monthMap).sort((a, b) => {
-    const am = Number(a.split('/')[1]);
-    const bm = Number(b.split('/')[1]);
-    return am - bm;
-  });
-
-  // x ?岳?嗆????閰?
-  const labels = months.map((m) => m.split('/')[1] + '??);
+  const months = [...monthMap.keys()].sort((a, b) => a - b);
+  const labels = months.map((m) => `${m}月`);
   const values = months.map((m) => {
-    const g = monthMap[m];
-    return g.weightSum > 0
-      ? Math.round((g.sum / g.weightSum) * 10000) / 100
-      : 0;
+    const item = monthMap.get(m);
+    return item.weightTotal > 0 ? Math.round((item.weightedSum / item.weightTotal) * 10000) / 100 : 0;
   });
 
   state.charts.trend = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: labels,
-      datasets: [
-        {
-          label: '????? (%)',
-          data: values,
-          borderColor: '#b8a9c9',
-          backgroundColor: 'rgba(184, 169, 201, 0.12)',
-          borderWidth: 2.5,
-          tension: 0.35,
-          fill: true,
-          pointBackgroundColor: '#b8a9c9',
-          pointBorderColor: '#ffffff',
-          pointBorderWidth: 2,
-          pointRadius: 4,
-          pointHoverRadius: 7,
-        },
-      ],
+      labels,
+      datasets: [{
+        label: '平均效率 (%)',
+        data: values,
+        borderColor: '#b8a9c9',
+        backgroundColor: 'rgba(184,169,201,0.12)',
+        borderWidth: 2.5,
+        tension: 0.35,
+        fill: true,
+        pointRadius: 4,
+        pointHoverRadius: 7,
+      }],
     },
     options: {
       responsive: true,
@@ -500,61 +465,63 @@ function renderTrendChart(data) {
       plugins: {
         legend: { display: false },
         datalabels: { display: false },
-        tooltip: {
-          backgroundColor: 'rgba(255, 255, 255, 0.9)',
-          titleColor: '#4a3f35',
-          bodyColor: '#8a7e72',
-          borderColor: 'rgba(0, 0, 0, 0.08)',
-          borderWidth: 1,
-          cornerRadius: 8,
-          padding: 12,
-          callbacks: {
-            label: (ctx) => `???: ${ ctx.parsed.y }% `,
-          },
-        },
       },
       scales: {
-        x: {
-          grid: { color: 'rgba(0, 0, 0, 0.04)' },
-          ticks: { color: '#8a7e72', font: { size: 11 } },
-        },
         y: {
           min: 0,
           max: 100,
-          grid: { color: 'rgba(0, 0, 0, 0.04)' },
-          ticks: {
-            color: '#8a7e72',
-            font: { size: 11 },
-            callback: (v) => v + '%',
-          },
+          ticks: { callback: (v) => `${v}%` },
         },
       },
     },
   });
 }
 
+function getSelectedYear() {
+  if (state.filterMonth && state.filterMonth !== 'all') {
+    const ym = parseYearMonth(state.filterMonth);
+    if (ym) return String(ym.year);
+  }
+
+  const years = state.rawData
+    .map((d) => parseYearMonth(d.yearMonth))
+    .filter(Boolean)
+    .map((p) => p.year);
+
+  if (years.length === 0) return String(new Date().getFullYear());
+  return String(Math.max(...years));
+}
+
 function renderComparisonChart(data) {
   const ctx = document.getElementById('comparisonChart');
-  if (state.charts.comparison) state.charts.comparison.destroy();
+  if (!ctx) return;
 
-  // ??Ｙ???????格?????
-  const personMap = {};
+  if (state.charts.comparison) {
+    state.charts.comparison.destroy();
+  }
+
+  const personMap = new Map();
   data.forEach((d) => {
-    if (d.efficiency == null) return;
-    if (!personMap[d.person]) {
-      personMap[d.person] = { sum: 0, weightSum: 0 };
+    const person = String(d.person || '');
+    if (!person) return;
+
+    const count = toNumber(d.count);
+    const eff = toNumber(d.efficiency);
+    if (count <= 0) return;
+
+    if (!personMap.has(person)) {
+      personMap.set(person, { weightedSum: 0, weightTotal: 0 });
     }
-    personMap[d.person].sum += d.efficiency * d.count;
-    personMap[d.person].weightSum += d.count;
+
+    const item = personMap.get(person);
+    item.weightedSum += eff * count;
+    item.weightTotal += count;
   });
 
-  const entries = Object.entries(personMap)
-    .map(([name, g]) => ({
+  const entries = [...personMap.entries()]
+    .map(([name, item]) => ({
       name,
-      eff:
-        g.weightSum > 0
-          ? Math.round((g.sum / g.weightSum) * 10000) / 100
-          : 0,
+      eff: item.weightTotal > 0 ? Math.round((item.weightedSum / item.weightTotal) * 10000) / 100 : 0,
     }))
     .sort((a, b) => b.eff - a.eff);
 
@@ -565,107 +532,48 @@ function renderComparisonChart(data) {
     type: 'bar',
     data: {
       labels,
-      datasets: [
-        {
-          label: '??????(???90%?鼎?)',
-          data: values,
-          backgroundColor: 'rgba(155, 184, 201, 0.65)',
-          borderColor: '#9bb8c9',
-          borderWidth: 1.5,
-          borderRadius: 4,
-          barPercentage: 0.7,
-          categoryPercentage: 0.8,
-        },
-        {
-          label: '??????(?????0%?鼎?)',
-          data: Array(labels.length).fill(90),
-          type: 'line',
-          borderColor: '#c9908a',
-          borderWidth: 2,
-          borderDash: [6, 3],
-          pointRadius: 0,
-          pointHoverRadius: 0,
-          fill: false,
-          datalabels: { display: false },
-        },
-      ],
+      datasets: [{
+        label: '效率 (%)',
+        data: values,
+        backgroundColor: 'rgba(155,184,201,0.65)',
+        borderColor: '#9bb8c9',
+        borderWidth: 1.5,
+        borderRadius: 4,
+      }],
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: {
-          display: true,
-          position: 'top',
-          labels: {
-            color: '#8a7e72',
-            font: { size: 11, family: 'Inter' },
-            usePointStyle: true,
-            pointStyle: (ctx) =>
-              ctx.datasetIndex === 1 ? 'line' : 'rect',
-            padding: 16,
-          },
-        },
         datalabels: {
           anchor: 'end',
           align: 'top',
-          offset: 4,
-          formatter: (value) => value + '%',
-          font: { weight: '600', size: 11, family: 'Inter' },
+          formatter: (v) => `${v}%`,
+          font: { weight: '600', size: 11 },
           color: '#4a3f35',
-        },
-        tooltip: {
-          backgroundColor: 'rgba(255, 255, 255, 0.9)',
-          titleColor: '#4a3f35',
-          bodyColor: '#8a7e72',
-          borderColor: 'rgba(0, 0, 0, 0.08)',
-          borderWidth: 1,
-          cornerRadius: 8,
-          padding: 12,
-          callbacks: {
-            label: (ctx) => `???: ${ ctx.parsed.y }% `,
-          },
         },
       },
       scales: {
-        x: {
-          grid: { display: false },
-          ticks: {
-            color: '#8a7e72',
-            font: { size: 11 },
-            maxRotation: 45,
-            minRotation: 0,
-          },
-        },
         y: {
           min: 0,
-          max: 112,
-          grid: { color: 'rgba(0, 0, 0, 0.04)' },
-          ticks: {
-            color: '#8a7e72',
-            font: { size: 11 },
-            callback: (v) => (v <= 100 ? v + '%' : ''),
-          },
+          max: 100,
+          ticks: { callback: (v) => `${v}%` },
         },
       },
     },
   });
 }
 
-// ???????????????????????????????????????????????????????????
-// Helpers
-// ???????????????????????????????????????????????????????????
 function getEfficiencyClass(eff) {
-  if (eff == null) return '';
   if (eff >= 0.9) return 'high';
   if (eff >= 0.7) return 'mid';
   return 'low';
 }
 
-function escapeHtml(str) {
-  if (str == null) return '';
+function escapeHtml(value) {
+  if (value == null) return '';
   const div = document.createElement('div');
-  div.textContent = String(str);
+  div.textContent = String(value);
   return div.innerHTML;
 }
 
@@ -674,9 +582,9 @@ function showError(message) {
   document.getElementById('errorState').style.display = 'block';
   document.getElementById('errorMessage').textContent = message;
 
-  // ?璇??????寞?
-  document.querySelectorAll('.summary-grid, .filters-bar, .table-section, .charts-grid')
-    .forEach((el) => (el.style.display = 'none'));
+  document
+    .querySelectorAll('.summary-grid, .filters-bar, .table-section, .charts-grid')
+    .forEach((el) => {
+      el.style.display = 'none';
+    });
 }
-
-
