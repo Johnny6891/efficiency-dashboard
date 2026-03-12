@@ -2,8 +2,31 @@
 
 const FIRESTORE_PROJECT_ID = 'work-report-system-26c12';
 const FIRESTORE_COLLECTION = 'efficiency_stats';
+const FIRESTORE_DETAIL_COLLECTION = 'efficiency_stats_details';
 const FIRESTORE_ENDPOINT_BASE =
   `https://firestore.googleapis.com/v1/projects/${FIRESTORE_PROJECT_ID}/databases/(default)/documents/${FIRESTORE_COLLECTION}`;
+const FIRESTORE_RUN_QUERY_ENDPOINT =
+  `https://firestore.googleapis.com/v1/projects/${FIRESTORE_PROJECT_ID}/databases/(default)/documents:runQuery`;
+
+const DETAIL_TABLE_COLUMNS = [
+  { key: 'category', label: '類別' },
+  { key: 'parentProductCode', label: '上階產品編號' },
+  { key: 'parentProductName', label: '上階產品名稱' },
+  { key: 'parentProductSpec', label: '上階產品規格' },
+  { key: 'processName', label: '加工名稱' },
+  { key: 'orderQty', label: '製令數量', isNum: true },
+  { key: 'scheduleNo', label: '排程單號' },
+  { key: 'customerShortName', label: '客戶簡稱' },
+  { key: 'startTime', label: '開始時間' },
+  { key: 'endTime', label: '結束時間' },
+  { key: 'colleagues', label: '上工同事' },
+  { key: 'colleagueCount', label: '同事數量', isNum: true },
+  { key: 'goodQty', label: '完成良品數量(不含NG)', isNum: true },
+  { key: 'ngQty', label: 'NG數量', isNum: true },
+  { key: 'pphActual', label: 'PPH(實際)', isNum: true },
+  { key: 'pphStandard', label: 'PPH(標準)', isNum: true },
+  { key: 'efficiency', label: '效率', isNum: true, isPercent: true },
+];
 
 const state = {
   rawData: [],
@@ -14,6 +37,13 @@ const state = {
   filterPerson: 'all',
   searchText: '',
   charts: { trend: null, comparison: null },
+  detailRecordsByMonth: {},
+  detailModal: {
+    isOpen: false,
+    tab: 'all',
+    row: null,
+    records: [],
+  },
 };
 
 if (window.Chart && window.ChartDataLabels) {
@@ -257,6 +287,49 @@ function setupEventListeners() {
       applyFiltersAndRender();
     });
   });
+
+  const tbody = document.getElementById('tableBody');
+  if (tbody) {
+    tbody.addEventListener('click', (event) => {
+      const tr = event.target.closest('tr[data-doc-id]');
+      if (!tr) return;
+      const docId = tr.getAttribute('data-doc-id');
+      const row = state.filteredData.find((item) => String(item.id || '') === String(docId || ''));
+      if (!row) return;
+      openDetailModal(row);
+    });
+  }
+
+  const modalBackdrop = document.getElementById('detailModalBackdrop');
+  const modalClose = document.getElementById('detailModalClose');
+  const modalTabs = document.getElementById('detailModalTabs');
+
+  if (modalClose) {
+    modalClose.addEventListener('click', closeDetailModal);
+  }
+
+  if (modalBackdrop) {
+    modalBackdrop.addEventListener('click', (event) => {
+      if (event.target === modalBackdrop) {
+        closeDetailModal();
+      }
+    });
+  }
+
+  if (modalTabs) {
+    modalTabs.addEventListener('click', (event) => {
+      const btn = event.target.closest('button[data-tab]');
+      if (!btn) return;
+      state.detailModal.tab = btn.dataset.tab || 'all';
+      renderDetailModal();
+    });
+  }
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && state.detailModal.isOpen) {
+      closeDetailModal();
+    }
+  });
 }
 
 function applyFiltersAndRender() {
@@ -380,7 +453,7 @@ function renderTable(data) {
     const hours = d.productionHours == null ? '-' : toNumber(d.productionHours).toFixed(1);
 
     return `
-      <tr style="animation-delay:${Math.min(i * 0.02, 0.5)}s">
+      <tr class="clickable-row" data-doc-id="${escapeHtml(d.id)}" style="animation-delay:${Math.min(i * 0.02, 0.5)}s">
         <td>${escapeHtml(d.yearMonth)}</td>
         <td><strong>${escapeHtml(d.person)}</strong></td>
         <td class="num">${toNumber(d.count)}</td>
@@ -398,6 +471,222 @@ function renderTable(data) {
   });
 
   tbody.innerHTML = rows.join('');
+}
+
+async function openDetailModal(row) {
+  const person = String(row.person || '').trim();
+  const yearMonth = String(row.yearMonth || '').trim();
+  if (!person || !yearMonth) return;
+
+  state.detailModal.isOpen = true;
+  state.detailModal.row = { person, yearMonth };
+  state.detailModal.tab = 'all';
+  state.detailModal.records = [];
+
+  const backdrop = document.getElementById('detailModalBackdrop');
+  if (backdrop) {
+    backdrop.classList.add('show');
+    backdrop.setAttribute('aria-hidden', 'false');
+  }
+  document.body.classList.add('modal-open');
+
+  const body = document.getElementById('detailTableBody');
+  if (body) {
+    body.innerHTML = '<tr><td colspan="17" class="loading-cell">讀取中...</td></tr>';
+  }
+  renderDetailModalHeader();
+
+  try {
+    const records = await fetchDetailRecordsByMonth(yearMonth);
+    state.detailModal.records = records.filter((item) => String(item.person || '') === person);
+    renderDetailModal();
+  } catch (error) {
+    console.error('載入詳細資料失敗', error);
+    if (body) {
+      body.innerHTML = `<tr><td colspan="17" class="loading-cell">載入失敗：${escapeHtml(error.message || '未知錯誤')}</td></tr>`;
+    }
+  }
+}
+
+function closeDetailModal() {
+  state.detailModal.isOpen = false;
+  const backdrop = document.getElementById('detailModalBackdrop');
+  if (backdrop) {
+    backdrop.classList.remove('show');
+    backdrop.setAttribute('aria-hidden', 'true');
+  }
+  document.body.classList.remove('modal-open');
+}
+
+function renderDetailModalHeader() {
+  const title = document.getElementById('detailModalTitle');
+  const subtitle = document.getElementById('detailModalSubtitle');
+  const row = state.detailModal.row;
+  if (!row) {
+    if (title) title.textContent = '詳細資料';
+    if (subtitle) subtitle.textContent = '-';
+    return;
+  }
+  if (title) title.textContent = `${row.person}｜${row.yearMonth} 詳細資料`;
+  if (subtitle) subtitle.textContent = `資料來源：${FIRESTORE_DETAIL_COLLECTION}`;
+}
+
+async function fetchDetailRecordsByMonth(yearMonth) {
+  const cacheKey = String(yearMonth || '');
+  if (!cacheKey) return [];
+  if (state.detailRecordsByMonth[cacheKey]) return state.detailRecordsByMonth[cacheKey];
+
+  const payload = {
+    structuredQuery: {
+      from: [{ collectionId: FIRESTORE_DETAIL_COLLECTION }],
+      where: {
+        fieldFilter: {
+          field: { fieldPath: 'yearMonth' },
+          op: 'EQUAL',
+          value: { stringValue: cacheKey },
+        },
+      },
+    },
+  };
+
+  const res = await fetch(FIRESTORE_RUN_QUERY_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    throw new Error(`讀取詳細資料失敗 (${res.status})`);
+  }
+
+  const json = await res.json();
+  const rows = (Array.isArray(json) ? json : [])
+    .map((entry) => (entry && entry.document ? decodeFirestoreDoc(entry.document) : null))
+    .filter(Boolean)
+    .sort((a, b) => parseDetailTimeMs(b) - parseDetailTimeMs(a));
+
+  state.detailRecordsByMonth[cacheKey] = rows;
+  return rows;
+}
+
+function parseDetailTimeMs(record) {
+  const byField = toNumber(record.startTimeMs);
+  if (byField > 0) return byField;
+  const raw = String(record.startTime || '').trim();
+  if (!raw) return 0;
+  const m = raw.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})(?:\s+(\d{1,2}):(\d{2}))?/);
+  if (!m) return 0;
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+  const hour = Number(m[4] || 0);
+  const minute = Number(m[5] || 0);
+  const date = Date.UTC(year, month - 1, day, hour, minute, 0, 0);
+  return Number.isFinite(date) ? date : 0;
+}
+
+function parseEfficiencyPercent(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    if (value <= 2.5) return value * 100;
+    return value;
+  }
+
+  const raw = String(value ?? '').trim();
+  if (!raw) return Number.NaN;
+  const hasPercent = raw.endsWith('%');
+  const parsed = Number(raw.replace(/%/g, '').replace(/,/g, '').trim());
+  if (!Number.isFinite(parsed)) return Number.NaN;
+  if (hasPercent) return parsed;
+  if (parsed <= 2.5) return parsed * 100;
+  return parsed;
+}
+
+function getDetailTabCounts(records) {
+  let achieved = 0;
+  let notAchieved = 0;
+  records.forEach((item) => {
+    const eff = parseEfficiencyPercent(item.efficiency);
+    if (!Number.isFinite(eff)) return;
+    if (eff >= 90) achieved += 1;
+    else if (eff < 90) notAchieved += 1;
+  });
+  return { all: records.length, achieved, notAchieved };
+}
+
+function getVisibleDetailRecords() {
+  const records = state.detailModal.records || [];
+  if (state.detailModal.tab === 'achieved') {
+    return records.filter((item) => {
+      const eff = parseEfficiencyPercent(item.efficiency);
+      return Number.isFinite(eff) && eff >= 90;
+    });
+  }
+  if (state.detailModal.tab === 'notAchieved') {
+    return records.filter((item) => {
+      const eff = parseEfficiencyPercent(item.efficiency);
+      return Number.isFinite(eff) && eff < 90;
+    });
+  }
+  return records;
+}
+
+function renderDetailModal() {
+  renderDetailModalHeader();
+
+  const records = state.detailModal.records || [];
+  const counts = getDetailTabCounts(records);
+  const tabText = {
+    all: `總筆數 (${counts.all})`,
+    achieved: `達成 (${counts.achieved})`,
+    notAchieved: `未達成 (${counts.notAchieved})`,
+  };
+
+  document.querySelectorAll('#detailModalTabs .detail-tab').forEach((btn) => {
+    const tab = btn.dataset.tab || 'all';
+    btn.classList.toggle('active', tab === state.detailModal.tab);
+    btn.textContent = tabText[tab] || btn.textContent;
+  });
+
+  const visible = getVisibleDetailRecords();
+  renderDetailTableRows(visible);
+}
+
+function renderDetailTableRows(records) {
+  const body = document.getElementById('detailTableBody');
+  if (!body) return;
+
+  if (!records || records.length === 0) {
+    body.innerHTML = '<tr><td colspan="17" class="loading-cell">沒有符合條件的詳細資料</td></tr>';
+    return;
+  }
+
+  body.innerHTML = records.map((item) => {
+    const cols = DETAIL_TABLE_COLUMNS.map((col) => {
+      const raw = item[col.key];
+      const value = formatDetailValue(raw, col);
+      const cls = col.isNum ? ' class="num"' : '';
+      return `<td${cls}>${value}</td>`;
+    }).join('');
+    return `<tr>${cols}</tr>`;
+  }).join('');
+}
+
+function formatDetailValue(value, col) {
+  if (value === undefined || value === null || value === '') return '-';
+  if (col && col.isPercent) {
+    const eff = parseEfficiencyPercent(value);
+    if (!Number.isFinite(eff)) return '-';
+    const rounded = Math.round(eff * 10) / 10;
+    const text = Number.isInteger(rounded) ? String(rounded) : String(rounded);
+    return `${escapeHtml(text)}%`;
+  }
+  if (col && col.isNum) {
+    const num = toNumber(value);
+    if (!Number.isFinite(num)) return '-';
+    const text = Number.isInteger(num) ? String(num) : String(Math.round(num * 100) / 100);
+    return escapeHtml(text);
+  }
+  return escapeHtml(value);
 }
 
 function updateSortIndicators() {

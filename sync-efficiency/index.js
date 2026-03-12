@@ -4,6 +4,7 @@ const admin = require('firebase-admin');
 
 const DEFAULTS = {
   collection: 'efficiency_stats',
+  detailCollection: 'efficiency_stats_details',
   dataSheetName: 'Data Sheet(Calculation)',
   refSheetName: '勿修改/全部同事DATA',
   refGroupHeader: '組別',
@@ -15,6 +16,21 @@ const DEFAULTS = {
   colDate: 50,
   colProductionHours: 53,
   colBf: 57,
+  colCategory: 0,
+  colParentProductCode: 6,
+  colParentProductName: 7,
+  colParentProductSpec: 8,
+  colProcessName: 10,
+  colOrderQty: 11,
+  colScheduleNo: 26,
+  colCustomerShortName: 31,
+  colStartTime: 42,
+  colEndTime: 45,
+  colColleagueCount: 44,
+  colGoodQty: 46,
+  colNgQty: 47,
+  colPphActual: 55,
+  colPphStandard: 56,
   syncScope: 'all_years',
   syncTimeZone: 'Asia/Taipei',
   port: 8080,
@@ -74,6 +90,7 @@ function loadConfig() {
 
   return {
     collection: process.env.FIRESTORE_COLLECTION || DEFAULTS.collection,
+    detailCollection: process.env.FIRESTORE_DETAIL_COLLECTION || DEFAULTS.detailCollection,
     refSheetId: process.env.REF_SHEET_ID,
     refSheetName: process.env.REF_SHEET_NAME || DEFAULTS.refSheetName,
     refGroupHeader: process.env.REF_GROUP_HEADER || DEFAULTS.refGroupHeader,
@@ -89,6 +106,21 @@ function loadConfig() {
     colDate: parseInteger('COL_DATE', DEFAULTS.colDate),
     colProductionHours: parseInteger('COL_PRODUCTION_HOURS', DEFAULTS.colProductionHours),
     colBf: parseInteger('COL_BF', DEFAULTS.colBf),
+    colCategory: parseInteger('COL_CATEGORY', DEFAULTS.colCategory),
+    colParentProductCode: parseInteger('COL_PARENT_PRODUCT_CODE', DEFAULTS.colParentProductCode),
+    colParentProductName: parseInteger('COL_PARENT_PRODUCT_NAME', DEFAULTS.colParentProductName),
+    colParentProductSpec: parseInteger('COL_PARENT_PRODUCT_SPEC', DEFAULTS.colParentProductSpec),
+    colProcessName: parseInteger('COL_PROCESS_NAME', DEFAULTS.colProcessName),
+    colOrderQty: parseInteger('COL_ORDER_QTY', DEFAULTS.colOrderQty),
+    colScheduleNo: parseInteger('COL_SCHEDULE_NO', DEFAULTS.colScheduleNo),
+    colCustomerShortName: parseInteger('COL_CUSTOMER_SHORT_NAME', DEFAULTS.colCustomerShortName),
+    colStartTime: parseInteger('COL_START_TIME', DEFAULTS.colStartTime),
+    colEndTime: parseInteger('COL_END_TIME', DEFAULTS.colEndTime),
+    colColleagueCount: parseInteger('COL_COLLEAGUE_COUNT', DEFAULTS.colColleagueCount),
+    colGoodQty: parseInteger('COL_GOOD_QTY', DEFAULTS.colGoodQty),
+    colNgQty: parseInteger('COL_NG_QTY', DEFAULTS.colNgQty),
+    colPphActual: parseInteger('COL_PPH_ACTUAL', DEFAULTS.colPphActual),
+    colPphStandard: parseInteger('COL_PPH_STANDARD', DEFAULTS.colPphStandard),
     syncScope: normalizeSyncScope(process.env.SYNC_SCOPE),
     syncYear: parseInteger('SYNC_YEAR', getCurrentYearInTimeZone(DEFAULTS.syncTimeZone)),
     syncToken: process.env.SYNC_TOKEN || '',
@@ -186,6 +218,100 @@ function toNumber(value) {
   return Number.isNaN(parsed) ? 0 : parsed;
 }
 
+function toNullableNumber(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function normalizeBfRatio(value) {
+  if (value === undefined || value === null || value === '') return null;
+
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    if (value < 0) return null;
+    return value > 2 ? value / 100 : value;
+  }
+
+  const text = String(value).trim();
+  if (!text) return null;
+
+  const hasPercent = text.endsWith('%');
+  const cleaned = text.replace(/%/g, '').replace(/,/g, '').trim();
+  if (!cleaned) return null;
+
+  const parsed = Number(cleaned);
+  if (!Number.isFinite(parsed) || parsed < 0) return null;
+
+  if (hasPercent) return parsed / 100;
+  return parsed > 2 ? parsed / 100 : parsed;
+}
+
+function splitColleagues(value) {
+  const set = new Set();
+  String(value || '')
+    .split(/[，,]/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .forEach((name) => set.add(name));
+  return Array.from(set);
+}
+
+function formatDateTimeYYYYMMDDHHMM(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  const hour = String(date.getUTCHours()).padStart(2, '0');
+  const minute = String(date.getUTCMinutes()).padStart(2, '0');
+  return `${year}/${month}/${day} ${hour}:${minute}`;
+}
+
+function toCellString(value) {
+  if (value === undefined || value === null) return '';
+  return String(value).trim();
+}
+
+function buildDetailDocId(sheetId, sourceRowNumber, person, yearMonth) {
+  const safePerson = String(person || '').replace(/[\/\\?#\[\]]/g, '-');
+  const safeYearMonth = String(yearMonth || '').replace(/[\/\\?#\[\]]/g, '-');
+  const safeSheetId = String(sheetId || '').replace(/[\/\\?#\[\]]/g, '-');
+  return `${safePerson}_${safeYearMonth}_${safeSheetId}_${sourceRowNumber}`;
+}
+
+function buildDetailRecord(row, person, yearMonth, config, sheetId, sourceRowNumber, bfRatio) {
+  const startDate = parseSheetDate(row[config.colStartTime]);
+  const endDate = parseSheetDate(row[config.colEndTime]);
+  const startTime = formatDateTimeYYYYMMDDHHMM(startDate) || toCellString(row[config.colStartTime]);
+  const endTime = formatDateTimeYYYYMMDDHHMM(endDate) || toCellString(row[config.colEndTime]);
+  const efficiencyPct = Math.round(bfRatio * 10000) / 100;
+
+  return {
+    yearMonth,
+    person,
+    category: toCellString(row[config.colCategory]),
+    parentProductCode: toCellString(row[config.colParentProductCode]),
+    parentProductName: toCellString(row[config.colParentProductName]),
+    parentProductSpec: toCellString(row[config.colParentProductSpec]),
+    processName: toCellString(row[config.colProcessName]),
+    orderQty: toNullableNumber(row[config.colOrderQty]),
+    scheduleNo: toCellString(row[config.colScheduleNo]),
+    customerShortName: toCellString(row[config.colCustomerShortName]),
+    startTime,
+    endTime,
+    colleagues: toCellString(row[config.colColleague]),
+    colleagueCount: toNullableNumber(row[config.colColleagueCount]),
+    goodQty: toNullableNumber(row[config.colGoodQty]),
+    ngQty: toNullableNumber(row[config.colNgQty]),
+    pphActual: toNullableNumber(row[config.colPphActual]),
+    pphStandard: toNullableNumber(row[config.colPphStandard]),
+    efficiency: efficiencyPct,
+    startTimeMs: startDate ? startDate.getTime() : null,
+    endTimeMs: endDate ? endDate.getTime() : null,
+    sourceSheetId: sheetId,
+    sourceRowNumber,
+  };
+}
+
 async function getValidPersons(sheetsClient, config) {
   if (!config.refSheetId) {
     throw new Error('REF_SHEET_ID is required.');
@@ -234,8 +360,9 @@ function mergeStats(target, partial) {
   }
 }
 
-function calculateStats(rows, validPersons, config) {
+function calculateStats(rows, validPersons, config, sheetId) {
   const stats = {};
+  const detailRecords = {};
   let latestDate = null;
   for (let i = 1; i < rows.length; i += 1) {
     const row = rows[i];
@@ -259,14 +386,10 @@ function calculateStats(rows, validPersons, config) {
     const yearMonth = `${date.getUTCFullYear()}/${date.getUTCMonth() + 1}`;
     const productionHours = toNumber(row[config.colProductionHours]);
 
-    const bfRaw = row[config.colBf];
-    const bf = bfRaw === '' || bfRaw === undefined || bfRaw === null ? null : Number(bfRaw);
-    const bfIsValid = bf !== null && !Number.isNaN(bf);
+    const bfRatio = normalizeBfRatio(row[config.colBf]);
+    const bfIsValid = bfRatio !== null;
 
-    const colleagues = String(colleagueRaw)
-      .split(',')
-      .map((item) => item.trim())
-      .filter(Boolean);
+    const colleagues = splitColleagues(colleagueRaw);
 
     for (const person of colleagues) {
       if (!validPersons.has(person)) continue;
@@ -287,9 +410,20 @@ function calculateStats(rows, validPersons, config) {
       stats[key].productionHours += productionHours;
       if (bfIsValid) {
         stats[key].count += 1;
-        if (bf < 0.9) stats[key].lt09 += 1;
-        else if (bf > 1.2) stats[key].gt12 += 1;
+        if (bfRatio < 0.9) stats[key].lt09 += 1;
+        else if (bfRatio > 1.2) stats[key].gt12 += 1;
         else stats[key].btw0912 += 1;
+
+        const detailDocId = buildDetailDocId(sheetId, i + 1, person, yearMonth);
+        detailRecords[detailDocId] = buildDetailRecord(
+          row,
+          person,
+          yearMonth,
+          config,
+          sheetId,
+          i + 1,
+          bfRatio,
+        );
       }
     }
   }
@@ -300,7 +434,7 @@ function calculateStats(rows, validPersons, config) {
       : null;
   }
 
-  return { stats, latestDate };
+  return { stats, detailRecords, latestDate };
 }
 
 async function deleteCoveredMonths(db, collectionName, monthsToReplace) {
@@ -335,6 +469,18 @@ async function writeStats(db, collectionName, statsMap) {
   return entries.length;
 }
 
+async function writeDetailRecords(db, collectionName, detailRecordsMap) {
+  const entries = Object.entries(detailRecordsMap);
+  for (let i = 0; i < entries.length; i += 450) {
+    const batch = db.batch();
+    for (const [docId, data] of entries.slice(i, i + 450)) {
+      batch.set(db.collection(collectionName).doc(docId), data);
+    }
+    await batch.commit();
+  }
+  return entries.length;
+}
+
 async function runSync() {
   const config = loadConfig();
   initFirebase();
@@ -344,14 +490,16 @@ async function runSync() {
   const startedAt = new Date();
   const validPersons = await getValidPersons(sheetsClient, config);
   const mergedStats = {};
+  const mergedDetailRecords = {};
   let sourceRows = 0;
   let latestDataDate = null;
 
   for (const sheet of config.dataSheets) {
     const rows = await readSheet(sheetsClient, sheet.id, sheet.name || DEFAULTS.dataSheetName);
     sourceRows += Math.max(rows.length - 1, 0);
-    const partial = calculateStats(rows, validPersons, config);
+    const partial = calculateStats(rows, validPersons, config, sheet.id);
     mergeStats(mergedStats, partial.stats);
+    Object.assign(mergedDetailRecords, partial.detailRecords);
     if (
       partial.latestDate &&
       (!latestDataDate || partial.latestDate.getTime() > latestDataDate.getTime())
@@ -369,15 +517,20 @@ async function runSync() {
   const coveredMonths = new Set(Object.values(mergedStats).map((item) => item.yearMonth));
   const deletedCount = await deleteCoveredMonths(db, config.collection, coveredMonths);
   const writtenCount = await writeStats(db, config.collection, mergedStats);
+  const detailDeletedCount = await deleteCoveredMonths(db, config.detailCollection, coveredMonths);
+  const detailWrittenCount = await writeDetailRecords(db, config.detailCollection, mergedDetailRecords);
 
   await db.collection(config.collection).doc('_metadata').set({
     lastSyncTime: new Date().toISOString(),
     latestDataDate: latestDataDate ? formatDateYYYYMMDD(latestDataDate) : null,
     recordCount: writtenCount,
+    detailRecordCount: detailWrittenCount,
+    detailCollection: config.detailCollection,
     validPersonsCount: validPersons.size,
     coveredMonths: Array.from(coveredMonths),
     sourceRows,
     deletedCount,
+    detailDeletedCount,
     syncScope: config.syncScope,
     syncYear: config.syncScope === 'current_year' ? config.syncYear : null,
     durationMs: Date.now() - startedAt.getTime(),
@@ -388,11 +541,14 @@ async function runSync() {
     startedAt: startedAt.toISOString(),
     finishedAt: new Date().toISOString(),
     collection: config.collection,
+    detailCollection: config.detailCollection,
     sourceRows,
     validPersonsCount: validPersons.size,
     coveredMonths: Array.from(coveredMonths),
     deletedCount,
     writtenCount,
+    detailDeletedCount,
+    detailWrittenCount,
     syncScope: config.syncScope,
     syncYear: config.syncScope === 'current_year' ? config.syncYear : null,
     latestDataDate: latestDataDate ? formatDateYYYYMMDD(latestDataDate) : null,

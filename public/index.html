@@ -143,6 +143,51 @@
     </section>
 
     <!-- ═══ Loading Overlay ═══ -->
+    <div class="detail-modal-backdrop" id="detailModalBackdrop" aria-hidden="true">
+      <div class="detail-modal" role="dialog" aria-modal="true" aria-labelledby="detailModalTitle">
+        <button type="button" class="detail-modal-close" id="detailModalClose" aria-label="關閉視窗">×</button>
+        <div class="detail-modal-header">
+          <h3 id="detailModalTitle">詳細資料</h3>
+          <p id="detailModalSubtitle">-</p>
+        </div>
+        <div class="detail-modal-tabs" id="detailModalTabs">
+          <button type="button" class="detail-tab active" data-tab="all">總筆數 (0)</button>
+          <button type="button" class="detail-tab" data-tab="achieved">達成 (0)</button>
+          <button type="button" class="detail-tab" data-tab="notAchieved">未達成 (0)</button>
+        </div>
+        <div class="detail-modal-table-wrap">
+          <table id="detailTable">
+            <thead>
+              <tr>
+                <th>類別</th>
+                <th>上階產品編號</th>
+                <th>上階產品名稱</th>
+                <th>上階產品規格</th>
+                <th>加工名稱</th>
+                <th class="num">製令數量</th>
+                <th>排程單號</th>
+                <th>客戶簡稱</th>
+                <th>開始時間</th>
+                <th>結束時間</th>
+                <th>上工同事</th>
+                <th class="num">同事數量</th>
+                <th class="num">完成良品數量(不含NG)</th>
+                <th class="num">NG數量</th>
+                <th class="num">PPH(實際)</th>
+                <th class="num">PPH(標準)</th>
+                <th class="num">效率</th>
+              </tr>
+            </thead>
+            <tbody id="detailTableBody">
+              <tr>
+                <td colspan="17" class="loading-cell">讀取中...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <div class="loading-overlay" id="loadingOverlay">
       <div class="spinner"></div>
       <p>正在載入資料...</p>

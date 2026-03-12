@@ -7,6 +7,11 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    match /efficiency_stats_details/{document} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // orders 集合：僅供 GAS 寫入（透過 Service Account 繞過規則）
     match /orders/{document} {
       allow read: if false;

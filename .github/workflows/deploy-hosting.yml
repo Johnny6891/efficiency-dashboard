@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - public/**
+      - firestore.rules
       - firebase.json
       - .firebaserc
       - .github/workflows/deploy-hosting.yml
@@ -45,5 +46,5 @@ jobs:
           printf '%s' "$FIREBASE_CREDENTIALS" > "$cred_path"
           echo "GOOGLE_APPLICATION_CREDENTIALS=$cred_path" >> "$GITHUB_ENV"
 
-      - name: Deploy to Firebase Hosting
-        run: npx --yes firebase-tools deploy --only hosting --project work-report-system-26c12 --non-interactive
+      - name: Deploy Hosting And Firestore Rules
+        run: npx --yes firebase-tools deploy --only "hosting,firestore:rules" --project work-report-system-26c12 --non-interactive
