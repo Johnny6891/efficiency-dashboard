@@ -642,7 +642,10 @@ body.modal-open {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(74, 63, 53, 0.34);
+  background:
+    radial-gradient(circle at 12% 18%, rgba(201, 144, 138, 0.28), transparent 42%),
+    radial-gradient(circle at 88% 82%, rgba(212, 184, 150, 0.24), transparent 46%),
+    rgba(74, 63, 53, 0.24);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease;
@@ -657,8 +660,10 @@ body.modal-open {
 .detail-modal {
   width: min(1500px, 100%);
   max-height: calc(100vh - 40px);
-  background: rgba(255, 255, 255, 0.86);
-  border: 1px solid var(--border);
+  background:
+    linear-gradient(135deg, rgba(245, 236, 227, 0.8), rgba(232, 218, 206, 0.74)),
+    rgba(240, 232, 223, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.55);
   border-radius: var(--radius-lg);
   box-shadow: var(--glass-shadow-hover);
   backdrop-filter: var(--glass-blur);
@@ -755,6 +760,15 @@ body.modal-open {
 
 #detailTable tbody td {
   white-space: nowrap;
+}
+
+#detailTable tbody tr.detail-row-low td {
+  background: rgba(201, 144, 138, 0.34);
+  color: #5f3732;
+}
+
+#detailTable tbody tr.detail-row-low:hover td {
+  background: rgba(201, 144, 138, 0.42);
 }
 
 /* ═══ Loading Overlay ═══ */

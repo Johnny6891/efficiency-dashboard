@@ -9,6 +9,9 @@ const FIRESTORE_RUN_QUERY_ENDPOINT =
   `https://firestore.googleapis.com/v1/projects/${FIRESTORE_PROJECT_ID}/databases/(default)/documents:runQuery`;
 
 const DETAIL_TABLE_COLUMNS = [
+  { key: 'pphActual', label: 'PPH(實際)', isNum: true },
+  { key: 'pphStandard', label: 'PPH(標準)', isNum: true },
+  { key: 'efficiency', label: '效率', isNum: true, isPercent: true },
   { key: 'category', label: '類別' },
   { key: 'parentProductCode', label: '上階產品編號' },
   { key: 'parentProductName', label: '上階產品名稱' },
@@ -23,9 +26,6 @@ const DETAIL_TABLE_COLUMNS = [
   { key: 'colleagueCount', label: '同事數量', isNum: true },
   { key: 'goodQty', label: '完成良品數量(不含NG)', isNum: true },
   { key: 'ngQty', label: 'NG數量', isNum: true },
-  { key: 'pphActual', label: 'PPH(實際)', isNum: true },
-  { key: 'pphStandard', label: 'PPH(標準)', isNum: true },
-  { key: 'efficiency', label: '效率', isNum: true, isPercent: true },
 ];
 
 const state = {
@@ -661,13 +661,16 @@ function renderDetailTableRows(records) {
   }
 
   body.innerHTML = records.map((item) => {
+    const eff = parseEfficiencyPercent(item.efficiency);
+    const isLow = Number.isFinite(eff) && eff < 90;
+    const rowClass = isLow ? ' class="detail-row-low"' : '';
     const cols = DETAIL_TABLE_COLUMNS.map((col) => {
       const raw = item[col.key];
       const value = formatDetailValue(raw, col);
       const cls = col.isNum ? ' class="num"' : '';
       return `<td${cls}>${value}</td>`;
     }).join('');
-    return `<tr>${cols}</tr>`;
+    return `<tr${rowClass}>${cols}</tr>`;
   }).join('');
 }
 
@@ -676,8 +679,8 @@ function formatDetailValue(value, col) {
   if (col && col.isPercent) {
     const eff = parseEfficiencyPercent(value);
     if (!Number.isFinite(eff)) return '-';
-    const rounded = Math.round(eff * 10) / 10;
-    const text = Number.isInteger(rounded) ? String(rounded) : String(rounded);
+    const rounded = Math.round(eff);
+    const text = String(rounded);
     return `${escapeHtml(text)}%`;
   }
   if (col && col.isNum) {
