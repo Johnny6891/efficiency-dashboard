@@ -113,8 +113,14 @@ async function createRuleset(projectId, rulesContent, accessToken) {
 
 async function releaseRules(projectId, rulesetName, accessToken) {
   const releaseName = `projects/${projectId}/releases/cloud.firestore`;
-  const endpoint = `https://firebaserules.googleapis.com/v1/${releaseName}?updateMask=rulesetName`;
-  const body = { name: releaseName, rulesetName };
+  const endpoint = `https://firebaserules.googleapis.com/v1/${releaseName}`;
+  const body = {
+    release: {
+      name: releaseName,
+      rulesetName,
+    },
+    updateMask: 'ruleset_name',
+  };
 
   const res = await fetch(endpoint, {
     method: 'PATCH',
