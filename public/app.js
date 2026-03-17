@@ -585,8 +585,20 @@ function parseDetailTimeMs(record) {
   return Number.isFinite(date) ? date : 0;
 }
 
-function parseEfficiencyPercent(value) {
+function parseEfficiencyPercent(value, record) {
+  const pphActual = toNumber(record && record.pphActual);
+  const pphStandard = toNumber(record && record.pphStandard);
+  if (
+    Number.isFinite(pphActual) &&
+    Number.isFinite(pphStandard) &&
+    pphActual >= 0 &&
+    pphStandard > 0
+  ) {
+    return (pphActual / pphStandard) * 100;
+  }
+
   if (typeof value === 'number' && Number.isFinite(value)) {
+    if (value < 0) return Number.NaN;
     if (value <= 2.5) return value * 100;
     return value;
   }
@@ -605,7 +617,7 @@ function getDetailTabCounts(records) {
   let achieved = 0;
   let notAchieved = 0;
   records.forEach((item) => {
-    const eff = parseEfficiencyPercent(item.efficiency);
+    const eff = parseEfficiencyPercent(item.efficiency, item);
     if (!Number.isFinite(eff)) return;
     if (eff >= 90) achieved += 1;
     else if (eff < 90) notAchieved += 1;
@@ -617,13 +629,13 @@ function getVisibleDetailRecords() {
   const records = state.detailModal.records || [];
   if (state.detailModal.tab === 'achieved') {
     return records.filter((item) => {
-      const eff = parseEfficiencyPercent(item.efficiency);
+      const eff = parseEfficiencyPercent(item.efficiency, item);
       return Number.isFinite(eff) && eff >= 90;
     });
   }
   if (state.detailModal.tab === 'notAchieved') {
     return records.filter((item) => {
-      const eff = parseEfficiencyPercent(item.efficiency);
+      const eff = parseEfficiencyPercent(item.efficiency, item);
       return Number.isFinite(eff) && eff < 90;
     });
   }
@@ -661,12 +673,12 @@ function renderDetailTableRows(records) {
   }
 
   body.innerHTML = records.map((item) => {
-    const eff = parseEfficiencyPercent(item.efficiency);
+    const eff = parseEfficiencyPercent(item.efficiency, item);
     const isLow = Number.isFinite(eff) && eff < 90;
     const rowClass = isLow ? ' class="detail-row-low"' : '';
     const cols = DETAIL_TABLE_COLUMNS.map((col) => {
       const raw = item[col.key];
-      const value = formatDetailValue(raw, col);
+      const value = formatDetailValue(raw, col, item);
       const cls = col.isNum ? ' class="num"' : '';
       return `<td${cls}>${value}</td>`;
     }).join('');
@@ -674,10 +686,10 @@ function renderDetailTableRows(records) {
   }).join('');
 }
 
-function formatDetailValue(value, col) {
+function formatDetailValue(value, col, row) {
   if (value === undefined || value === null || value === '') return '-';
   if (col && col.isPercent) {
-    const eff = parseEfficiencyPercent(value);
+    const eff = parseEfficiencyPercent(value, row);
     if (!Number.isFinite(eff)) return '-';
     const rounded = Math.round(eff);
     const text = String(rounded);

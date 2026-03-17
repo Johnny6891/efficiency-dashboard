@@ -229,7 +229,7 @@ function normalizeBfRatio(value) {
 
   if (typeof value === 'number' && Number.isFinite(value)) {
     if (value < 0) return null;
-    return value > 2 ? value / 100 : value;
+    return value > 10 ? value / 100 : value;
   }
 
   const text = String(value).trim();
@@ -243,7 +243,21 @@ function normalizeBfRatio(value) {
   if (!Number.isFinite(parsed) || parsed < 0) return null;
 
   if (hasPercent) return parsed / 100;
-  return parsed > 2 ? parsed / 100 : parsed;
+  return parsed > 10 ? parsed / 100 : parsed;
+}
+
+function resolveEfficiencyRatio(row, config) {
+  const pphActual = toNullableNumber(row[config.colPphActual]);
+  const pphStandard = toNullableNumber(row[config.colPphStandard]);
+  if (
+    Number.isFinite(pphActual) &&
+    Number.isFinite(pphStandard) &&
+    pphActual >= 0 &&
+    pphStandard > 0
+  ) {
+    return pphActual / pphStandard;
+  }
+  return normalizeBfRatio(row[config.colBf]);
 }
 
 function splitColleagues(value) {
@@ -278,12 +292,12 @@ function buildDetailDocId(sheetId, sourceRowNumber, person, yearMonth) {
   return `${safePerson}_${safeYearMonth}_${safeSheetId}_${sourceRowNumber}`;
 }
 
-function buildDetailRecord(row, person, yearMonth, config, sheetId, sourceRowNumber, bfRatio) {
+function buildDetailRecord(row, person, yearMonth, config, sheetId, sourceRowNumber, efficiencyRatio) {
   const startDate = parseSheetDate(row[config.colStartTime]);
   const endDate = parseSheetDate(row[config.colEndTime]);
   const startTime = formatDateTimeYYYYMMDDHHMM(startDate) || toCellString(row[config.colStartTime]);
   const endTime = formatDateTimeYYYYMMDDHHMM(endDate) || toCellString(row[config.colEndTime]);
-  const efficiencyPct = Math.round(bfRatio * 10000) / 100;
+  const efficiencyPct = Math.round(efficiencyRatio * 10000) / 100;
 
   return {
     yearMonth,
@@ -386,8 +400,8 @@ function calculateStats(rows, validPersons, config, sheetId) {
     const yearMonth = `${date.getUTCFullYear()}/${date.getUTCMonth() + 1}`;
     const productionHours = toNumber(row[config.colProductionHours]);
 
-    const bfRatio = normalizeBfRatio(row[config.colBf]);
-    const bfIsValid = bfRatio !== null;
+    const efficiencyRatio = resolveEfficiencyRatio(row, config);
+    const ratioIsValid = efficiencyRatio !== null;
 
     const colleagues = splitColleagues(colleagueRaw);
 
@@ -408,10 +422,10 @@ function calculateStats(rows, validPersons, config, sheetId) {
       }
 
       stats[key].productionHours += productionHours;
-      if (bfIsValid) {
+      if (ratioIsValid) {
         stats[key].count += 1;
-        if (bfRatio < 0.9) stats[key].lt09 += 1;
-        else if (bfRatio > 1.2) stats[key].gt12 += 1;
+        if (efficiencyRatio < 0.9) stats[key].lt09 += 1;
+        else if (efficiencyRatio > 1.2) stats[key].gt12 += 1;
         else stats[key].btw0912 += 1;
 
         const detailDocId = buildDetailDocId(sheetId, i + 1, person, yearMonth);
@@ -422,7 +436,7 @@ function calculateStats(rows, validPersons, config, sheetId) {
           config,
           sheetId,
           i + 1,
-          bfRatio,
+          efficiencyRatio,
         );
       }
     }
