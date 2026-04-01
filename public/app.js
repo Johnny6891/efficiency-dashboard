@@ -729,10 +729,12 @@ function renderTrendChart() {
 
   const selectedYear = getSelectedYear();
   const monthMap = new Map();
+  const selectedPerson = state.filterPerson && state.filterPerson !== 'all' ? state.filterPerson : null;
 
   state.rawData.forEach((d) => {
     const ym = parseYearMonth(d.yearMonth);
     if (!ym || String(ym.year) !== selectedYear) return;
+    if (selectedPerson && String(d.person) !== selectedPerson) return;
 
     const count = toNumber(d.count);
     const eff = toNumber(d.efficiency);
@@ -754,13 +756,14 @@ function renderTrendChart() {
     const item = monthMap.get(m);
     return item.weightTotal > 0 ? Math.round((item.weightedSum / item.weightTotal) * 10000) / 100 : 0;
   });
+  const chartLabel = selectedPerson ? `${selectedPerson} 達成率 (%)` : '平均效率 (%)';
 
   state.charts.trend = new Chart(ctx, {
     type: 'line',
     data: {
       labels,
       datasets: [{
-        label: '平均效率 (%)',
+        label: chartLabel,
         data: values,
         borderColor: '#b8a9c9',
         backgroundColor: 'rgba(184,169,201,0.12)',
