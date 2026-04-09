@@ -28,6 +28,8 @@ const DETAIL_TABLE_COLUMNS = [
   { key: 'ngQty', label: 'NG數量', isNum: true },
 ];
 
+const POLL_INTERVAL_MS = 60 * 60 * 1000; // 1 小時
+
 const state = {
   rawData: [],
   filteredData: [],
@@ -44,6 +46,7 @@ const state = {
     row: null,
     records: [],
   },
+  lastSyncTime: null,
 };
 
 if (window.Chart && window.ChartDataLabels) {
@@ -58,6 +61,7 @@ async function init() {
 
     const meta = docs.find((d) => d.id === '_metadata') || null;
     state.rawData = docs.filter((d) => d.id !== '_metadata');
+    state.lastSyncTime = meta && meta.lastSyncTime ? String(meta.lastSyncTime) : null;
 
     renderLastUpdated(meta);
     renderLatestDataDate(meta);
@@ -66,9 +70,38 @@ async function init() {
     applyFiltersAndRender();
 
     document.getElementById('loadingOverlay').classList.add('hidden');
+
+    setInterval(pollForUpdates, POLL_INTERVAL_MS);
   } catch (err) {
     console.error('載入資料失敗', err);
     showError(err && err.message ? err.message : '無法載入資料');
+  }
+}
+
+async function pollForUpdates() {
+  try {
+    const res = await fetch(`${FIRESTORE_ENDPOINT_BASE}/_metadata`);
+    if (!res.ok) return;
+
+    const json = await res.json();
+    const meta = decodeFirestoreDoc(json);
+    const latestSyncTime = meta && meta.lastSyncTime ? String(meta.lastSyncTime) : null;
+
+    if (!latestSyncTime || latestSyncTime === state.lastSyncTime) return;
+
+    // 資料有更新，重新載入全量資料
+    const docs = await fetchAllEfficiencyDocs();
+    const newMeta = docs.find((d) => d.id === '_metadata') || null;
+    state.rawData = docs.filter((d) => d.id !== '_metadata');
+    state.lastSyncTime = latestSyncTime;
+    state.detailRecordsByMonth = {};
+
+    renderLastUpdated(newMeta);
+    renderLatestDataDate(newMeta);
+    populateFilters();
+    applyFiltersAndRender();
+  } catch (err) {
+    console.error('輪詢更新失敗', err);
   }
 }
 
